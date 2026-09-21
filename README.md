@@ -43,6 +43,18 @@ product.
 | `tools/probe/` | Whole-install survey — the report you share |
 | `tools/paktool/` | CryPak (`.pak`) inspection and extraction |
 | `tools/budget/` | Android footprint model |
+| `tools/device/` | Target device capability probe |
+
+## Reference device
+
+Development and the target are the same machine: a **Galaxy Z Fold 8**, with
+everything run through Termux. Its GPU family decides whether the
+translation-layer path is viable, so that gets measured rather than assumed —
+see [`docs/DEVICE.md`](docs/DEVICE.md).
+
+```sh
+python3 tools/device/device.py --digest
+```
 
 ## Requirements
 
@@ -93,7 +105,7 @@ python3 tools/paktool/paktool.py extract "$PAK" -o out/ -p 'Materials/*'
 ## Tests
 
 ```sh
-for t in paktool probe budget; do python3 -m unittest discover -s "tools/$t" -v; done
+for t in paktool probe budget device; do python3 -m unittest discover -s "tools/$t" -v; done
 ```
 
 Fixtures are generated at runtime; no game data is required to run them.

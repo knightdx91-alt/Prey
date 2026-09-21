@@ -14,6 +14,7 @@ so it should not start until the data model is pinned down.
 - [x] `probe` — whole-install survey, so findings travel without the assets
 - [x] Data-sharing workflow documented (`docs/GETTING_DATA.md`)
 - [x] `budget` — Android footprint model (`docs/SIZE_BUDGET.md`)
+- [x] `device` — target capability probe (`docs/DEVICE.md`)
 
 ## Phase 1 — Data archaeology
 
@@ -44,10 +45,17 @@ textures, and materials in a form a renderer could consume.
 
 ## Phase 2 — Reference runtime (the oracle)
 
-- [ ] Box64/FEX + Wine + DXVK + Turnip bring-up on an Adreno device
+**Gated on one device probe.** Reference device is a Galaxy Z Fold 8; whether
+its GPU is Adreno or Xclipse decides whether this phase is realistic at all,
+because Turnip exists for one and not the other. Run `tools/device/device.py`
+before committing effort here. See `docs/DEVICE.md`.
+
+- [ ] Confirm the GPU family, Vulkan version, and texture format support
+- [ ] Box64/FEX + Wine + DXVK + Turnip bring-up (Adreno path)
 - [ ] Get to a main menu; record everything that breaks getting there
 - [ ] Capture reference frames for the native renderer to diff against
-- [ ] Profile honestly and publish the numbers, however bad they are
+- [ ] Profile honestly and publish the numbers, however bad they are —
+      over a sustained run, since a foldable throttles sooner than a slab
 
 Exit criterion: a frame of Prey rendered on Android hardware, by any means, with
 a capture to compare against later.

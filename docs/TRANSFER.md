@@ -33,6 +33,10 @@ cd Prey
 python3 tools/probe/probe.py ~/storage/shared/Prey -o report.json --digest digest.txt
 
 cat digest.txt
+
+# And the device itself, which is also a project input
+pkg install vulkan-tools
+python3 tools/device/device.py --digest
 ```
 
 Copy what `cat` prints. Paste it into the chat. That is the whole transfer.

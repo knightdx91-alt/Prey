@@ -98,10 +98,30 @@ Every factor is an **estimate** derived from format arithmetic, not from
 converting Prey's assets. Replace them with measured ratios once the asset
 pipeline exists. See `docs/SIZE_BUDGET.md`.
 
+## device
+
+Reports the Android device's capabilities as they bear on the port. Run under
+Termux on the target; needs no root and writes nothing to the device.
+
+```sh
+pkg install vulkan-tools          # enables the Vulkan section
+python3 tools/device/device.py --digest
+python3 tools/device/device.py -o device.json --digest device.txt
+```
+
+Reports the GPU family and what it implies for the driver path, Vulkan version
+and texture format support (ASTC / BC / ETC2), CPU clusters, RAM, and free
+storage checked against every `budget.py` profile.
+
+Facts that cannot be read without root or an app context are reported as
+unknown rather than guessed. The GPU family is the decisive one: Adreno has a
+mature open Vulkan driver and Xclipse does not, which decides whether Phase 2
+is viable. See `docs/DEVICE.md`.
+
 ## Tests
 
 ```sh
-for t in paktool probe budget; do python3 -m unittest discover -s "tools/$t" -v; done
+for t in paktool probe budget device; do python3 -m unittest discover -s "tools/$t" -v; done
 ```
 
 Fixtures are generated at runtime, so the suite needs no game data and commits
