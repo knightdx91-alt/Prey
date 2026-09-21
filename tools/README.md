@@ -66,11 +66,31 @@ ahead of the ZIP structure, which is how a CryPak header would present.
 Exit codes: `0` all good, `1` some entries could not be read, `2` the archive
 could not be parsed at all.
 
+## budget
+
+Models Prey's Android install footprint. Runs against a probe report for the
+real category mix, or against a headline total with assumed proportions when
+no report exists yet.
+
+```sh
+python3 tools/budget/budget.py --total-gb 41
+python3 tools/budget/budget.py --total-gb 41 --all-profiles
+python3 tools/budget/budget.py --report prey-report.json --profile aggressive
+python3 tools/budget/budget.py --report prey-report.json --json
+```
+
+Three profiles — `quality`, `balanced` (default), `aggressive` — each a set of
+per-category reduction factors with the reasoning recorded next to the number,
+because a factor without its derivation cannot be argued with or corrected.
+
+Every factor is an **estimate** derived from format arithmetic, not from
+converting Prey's assets. Replace them with measured ratios once the asset
+pipeline exists. See `docs/SIZE_BUDGET.md`.
+
 ## Tests
 
 ```sh
-python3 -m unittest discover -s tools/paktool -v
-python3 -m unittest discover -s tools/probe -v
+for t in paktool probe budget; do python3 -m unittest discover -s "tools/$t" -v; done
 ```
 
 Fixtures are generated at runtime, so the suite needs no game data and commits

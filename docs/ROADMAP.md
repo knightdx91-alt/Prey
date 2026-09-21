@@ -13,6 +13,7 @@ so it should not start until the data model is pinned down.
 - [x] `paktool` — CryPak inspection and extraction
 - [x] `probe` — whole-install survey, so findings travel without the assets
 - [x] Data-sharing workflow documented (`docs/GETTING_DATA.md`)
+- [x] `budget` — Android footprint model (`docs/SIZE_BUDGET.md`)
 
 ## Phase 1 — Data archaeology
 
@@ -53,12 +54,23 @@ a capture to compare against later.
 
 ## Phase 3 — Asset pipeline
 
-- [ ] BC → ASTC transcoding
-- [ ] Mesh optimization and vertex stream repacking for mobile bandwidth
-- [ ] Audio re-encoding
-- [ ] Android asset packaging, sized against Play delivery limits
+Desktop install is ~41 GB. The model in `docs/SIZE_BUDGET.md` puts a balanced
+mobile build near 9.5 GB, and names geometry — not textures — as the largest
+remaining category, because texture compression has a well-understood mobile
+answer and mesh data does not.
 
-Exit criterion: the full game's data, converted, with a measured install size.
+- [ ] Mesh optimization and vertex stream repacking **(largest category after
+      reduction; start here, against instinct)**
+- [ ] LOD policy — decide what a phone actually needs
+- [ ] BC → ASTC transcoding, with measured ratios replacing the estimates
+- [ ] Locale policy; audio re-encoding
+- [ ] Video re-encode or cut
+- [ ] Android asset packaging; confirm current Play delivery limits, which
+      `budget.py` currently carries as UNVERIFIED
+- [ ] Feed measured ratios back into `budget.py`
+
+Exit criterion: the full game's data, converted, with a measured install size
+to replace the model's estimate.
 
 ## Phase 4 — Native runtime
 

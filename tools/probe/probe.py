@@ -46,6 +46,12 @@ PROBE_VERSION = 1
 # version field; far too few to be a copy of anything.
 HEADER_BYTES = 64
 
+# Samples are deduplicated on their leading bytes, so the report scales with
+# the number of *distinct formats* rather than with archives x extensions. 16
+# bytes is the informative window for the formats that matter -- a .cgf legacy
+# header is exactly signature(8) + file type(4) + version(4).
+SIGNATURE_KEY_BYTES = 16
+
 # CryEngine's Audio Translation Layer ships one implementation DLL per
 # middleware, so the filename settles the Wwise-or-FMOD question outright.
 AUDIO_IMPL_HINTS = {
@@ -82,6 +88,70 @@ def identify(head: bytes) -> str | None:
         if head.startswith(magic):
             return label
     return None
+
+
+class Registry:
+    """Install-wide, deduplicated store of header signatures and chunk variants.
+
+    A 41 GB install repeats the same few hundred header shapes across tens of
+    archives. Recording each occurrence would make the report grow with the
+    install; recording each *distinct* shape keeps it flat, and loses nothing,
+    because a second identical header teaches us nothing the first did not.
+    """
+
+    def __init__(self, examples_per_signature: int = 3):
+        self.examples_per_signature = examples_per_signature
+        self.signatures: dict[str, dict[str, Any]] = {}
+        self.chunk_variants: dict[str, dict[str, Any]] = {}
+
+    def add_sample(self, name: str, ext: str, size: int, head: bytes) -> None:
+        key = binascii.hexlify(head[:SIGNATURE_KEY_BYTES]).decode()
+        record = self.signatures.get(key)
+        if record is None:
+            record = {
+                "key_hex": key,
+                "head_hex": binascii.hexlify(head).decode(),
+                "identified": identify(head),
+                "extensions": {},
+                "count": 0,
+                "examples": [],
+            }
+            self.signatures[key] = record
+        record["count"] += 1
+        record["extensions"][ext] = record["extensions"].get(ext, 0) + 1
+        if len(record["examples"]) < self.examples_per_signature:
+            record["examples"].append({"name": name, "size": size})
+
+    def add_chunk(self, chunk: dict[str, Any], name: str, ext: str) -> None:
+        key = "|".join(
+            f"{k}={chunk[k]}"
+            for k in ("header", "file_type", "version")
+            if k in chunk
+        )
+        record = self.chunk_variants.get(key)
+        if record is None:
+            record = dict(chunk)
+            record["count"] = 0
+            record["extensions"] = {}
+            record["examples"] = []
+            # Per-file offsets vary and say nothing about the format variant.
+            record.pop("chunk_table_offset", None)
+            record.pop("chunk_count", None)
+            self.chunk_variants[key] = record
+        record["count"] += 1
+        record["extensions"][ext] = record["extensions"].get(ext, 0) + 1
+        if len(record["examples"]) < self.examples_per_signature:
+            record["examples"].append(name)
+
+    def as_report(self) -> dict[str, Any]:
+        return {
+            "signatures": sorted(
+                self.signatures.values(), key=lambda r: -r["count"]
+            ),
+            "chunk_variants": sorted(
+                self.chunk_variants.values(), key=lambda r: -r["count"]
+            ),
+        }
 
 
 def _rel(path: str, root: str) -> str:
@@ -160,7 +230,9 @@ def parse_chunk_header(head: bytes) -> dict[str, Any] | None:
     return None
 
 
-def survey_archive(path: str, root: str, samples_per_ext: int) -> dict[str, Any]:
+def survey_archive(
+    path: str, root: str, samples_per_ext: int, registry: Registry
+) -> dict[str, Any]:
     """Summarize one archive: histograms plus a few header samples per type."""
     record: dict[str, Any] = {
         "path": _rel(path, root),
@@ -192,8 +264,8 @@ def survey_archive(path: str, root: str, samples_per_ext: int) -> dict[str, Any]
 
         # Sample a few headers per extension. This is where format evidence
         # comes from, and it is why the report is worth more than a listing.
-        samples: list[dict[str, Any]] = []
-        chunk_notes: list[dict[str, Any]] = []
+        # Results go to the install-wide registry, which collapses duplicates.
+        sampled = errors = 0
         taken: collections.Counter[str] = collections.Counter()
 
         for entry in files:
@@ -203,29 +275,21 @@ def survey_archive(path: str, root: str, samples_per_ext: int) -> dict[str, Any]
                 continue
             try:
                 head = pak.read(entry)[:HEADER_BYTES]
-            except Exception as exc:  # noqa: BLE001 - one bad entry must not stop the survey
-                samples.append({"name": entry.name, "error": str(exc)})
+            except Exception:  # noqa: BLE001 - one bad entry must not stop the survey
+                errors += 1
                 taken[entry.ext] += 1
                 continue
 
             taken[entry.ext] += 1
-            sample = {
-                "name": entry.name,
-                "ext": entry.ext,
-                "size": entry.uncomp_size,
-                "head_hex": binascii.hexlify(head).decode(),
-                "identified": identify(head),
-            }
-            samples.append(sample)
+            sampled += 1
+            registry.add_sample(entry.name, entry.ext, entry.uncomp_size, head)
 
             chunk = parse_chunk_header(head)
             if chunk:
-                chunk["name"] = entry.name
-                chunk["ext"] = entry.ext
-                chunk_notes.append(chunk)
+                registry.add_chunk(chunk, entry.name, entry.ext)
 
-        record["samples"] = samples
-        record["chunk_headers"] = chunk_notes
+        record["sampled"] = sampled
+        record["sample_errors"] = errors
 
         # Lua ships either as text or as bytecode, and bytecode would be
         # version- and endianness-bound -- which matters on ARM64.
@@ -258,7 +322,6 @@ def survey_archive(path: str, root: str, samples_per_ext: int) -> dict[str, Any]
 def aggregate(archives: list[dict[str, Any]]) -> dict[str, Any]:
     exts: collections.Counter[str] = collections.Counter()
     methods: collections.Counter[str] = collections.Counter()
-    identified: collections.Counter[str] = collections.Counter()
     total_u = total_c = 0
     unreadable = 0
 
@@ -270,9 +333,6 @@ def aggregate(archives: list[dict[str, Any]]) -> dict[str, Any]:
         total_u += a.get("uncompressed_size", 0)
         total_c += a.get("compressed_size", 0)
         unreadable += a.get("unreadable_entries", 0)
-        for s in a.get("samples", []):
-            if s.get("identified"):
-                identified[s["identified"]] += 1
 
     return {
         "archives": len(archives),
@@ -283,7 +343,6 @@ def aggregate(archives: list[dict[str, Any]]) -> dict[str, Any]:
         "compressed_size": total_c,
         "extensions": dict(exts.most_common()),
         "methods": dict(methods.most_common()),
-        "identified_formats": dict(identified.most_common()),
     }
 
 
@@ -343,10 +402,28 @@ def print_summary(report: dict[str, Any]) -> None:
     for ext, count in list(totals["extensions"].items())[:20]:
         print(f"  {count:>9}  {ext}")
 
-    if totals["identified_formats"]:
-        print("\nidentified header formats (from samples)")
-        for label, count in totals["identified_formats"].items():
+    identified: dict[str, int] = {}
+    unknown = 0
+    for sig in report.get("signatures", []):
+        if sig["identified"]:
+            identified[sig["identified"]] = (
+                identified.get(sig["identified"], 0) + sig["count"]
+            )
+        else:
+            unknown += 1
+    if identified:
+        print("\nidentified header formats (deduplicated)")
+        for label, count in sorted(identified.items(), key=lambda kv: -kv[1]):
             print(f"  {count:>9}  {label}")
+    if unknown:
+        print(f"\n{unknown} distinct header signature(s) not recognized"
+              "  <-- candidates for format work")
+
+    print(f"\ndistinct signatures   {len(report.get('signatures', []))}")
+    print(f"distinct chunk types  {len(report.get('chunk_variants', []))}")
+    for variant in report.get("chunk_variants", []):
+        bits = [f"{k}={variant[k]}" for k in ("header", "version") if k in variant]
+        print(f"  {variant['count']:>9}  {' '.join(bits)}")
 
     print("\n" + "=" * 62)
     print(f"Report written to: {report['_output']}")
@@ -380,10 +457,11 @@ def main(argv: list[str] | None = None) -> int:
     archives_on_disk = find_archives(root)
     print(f"found {len(archives_on_disk)} archive(s)", file=sys.stderr)
 
+    registry = Registry()
     archives = []
     for i, path in enumerate(archives_on_disk, 1):
         print(f"  [{i}/{len(archives_on_disk)}] {_rel(path, root)}", file=sys.stderr)
-        archives.append(survey_archive(path, root, args.samples))
+        archives.append(survey_archive(path, root, args.samples, registry))
 
     report: dict[str, Any] = {
         "probe_version": PROBE_VERSION,
@@ -393,6 +471,7 @@ def main(argv: list[str] | None = None) -> int:
         "binaries": survey_binaries(root),
         "archives": archives,
         "totals": aggregate(archives),
+        **registry.as_report(),
     }
 
     with open(args.output, "w", encoding="utf-8") as fh:

@@ -42,6 +42,7 @@ product.
 | `docs/` | Architecture, format notes, roadmap, data workflow |
 | `tools/probe/` | Whole-install survey — the report you share |
 | `tools/paktool/` | CryPak (`.pak`) inspection and extraction |
+| `tools/budget/` | Android footprint model |
 
 ## Requirements
 
@@ -60,6 +61,11 @@ read-only survey locally, share the small report it produces, and the findings
 and parsers improve from there.
 
 See [`docs/GETTING_DATA.md`](docs/GETTING_DATA.md) for the full rationale.
+
+The install is ~41 GB, which matters for the *port* rather than for this
+workflow. [`docs/SIZE_BUDGET.md`](docs/SIZE_BUDGET.md) works that arithmetic
+out: roughly 9.5 GB on balanced settings, with geometry — not textures —
+turning out to be the largest remaining category.
 
 ## Quick start
 
@@ -83,8 +89,7 @@ python3 tools/paktool/paktool.py extract "$PAK" -o out/ -p 'Materials/*'
 ## Tests
 
 ```sh
-python3 -m unittest discover -s tools/paktool -v
-python3 -m unittest discover -s tools/probe -v
+for t in paktool probe budget; do python3 -m unittest discover -s "tools/$t" -v; done
 ```
 
 Fixtures are generated at runtime; no game data is required to run them.

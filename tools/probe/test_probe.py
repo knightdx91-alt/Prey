@@ -130,12 +130,63 @@ class ProbeTest(unittest.TestCase):
 
     def test_report_captures_chunk_versions(self):
         report = self._report()
-        versions = {
-            c["version"]
-            for a in report["archives"]
-            for c in a.get("chunk_headers", [])
-        }
+        versions = {c["version"] for c in report["chunk_variants"]}
         self.assertEqual(versions, {0x746})
+        headers = {c["header"] for c in report["chunk_variants"]}
+        self.assertEqual(headers, {"legacy", "CrCh"})
+
+    def test_signatures_are_deduplicated(self):
+        """The same header shape across archives must be recorded once.
+
+        This is what keeps the report flat as the install grows: a 41 GB game
+        repeats a few hundred header shapes across tens of archives, and a
+        second identical header teaches us nothing the first did not.
+        """
+        import shutil
+
+        # A byte-identical copy of an archive adds occurrences, not signatures.
+        copy = os.path.join(self.root, "GameSDK", "GameData_copy.pak")
+        shutil.copy(self.game_pak, copy)
+
+        report = self._report()
+        self.assertEqual(report["totals"]["archives"], 3)
+
+        keys = [s["key_hex"] for s in report["signatures"]]
+        self.assertEqual(len(keys), len(set(keys)), "duplicate signature keys")
+
+        # Every signature was seen at least twice now (original + copy).
+        cgf = next(
+            s for s in report["signatures"]
+            if s["identified"] == "CryEngine chunked file (legacy header)"
+        )
+        self.assertEqual(cgf["count"], 2)
+        self.assertEqual(len(cgf["examples"]), 2)
+        self.assertIn(".cgf", cgf["extensions"])
+
+    def test_chunk_variants_collapse_by_shape(self):
+        """Two .cgf files of the same version are one variant, counted twice."""
+        with zipfile.ZipFile(self.game_pak, "a", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("Objects/characters/phantom.cgf", CGF_LEGACY)
+
+        report = self._report()
+        legacy = [c for c in report["chunk_variants"] if c["header"] == "legacy"]
+        self.assertEqual(len(legacy), 1)
+        self.assertEqual(legacy[0]["count"], 2)
+
+    def test_chunk_variant_drops_per_file_offsets(self):
+        """Offsets differ per file and say nothing about the format variant."""
+        report = self._report()
+        for variant in report["chunk_variants"]:
+            self.assertNotIn("chunk_table_offset", variant)
+            self.assertNotIn("chunk_count", variant)
+
+    def test_signature_examples_are_capped(self):
+        registry = probe.Registry(examples_per_signature=2)
+        for i in range(10):
+            registry.add_sample(f"f{i}.dds", ".dds", 100, DDS)
+        sig = registry.as_report()["signatures"][0]
+        self.assertEqual(sig["count"], 10)
+        self.assertEqual(len(sig["examples"]), 2)
 
     def test_report_separates_lua_source_from_bytecode(self):
         report = self._report()
@@ -197,12 +248,18 @@ class ProbeTest(unittest.TestCase):
     def test_samples_are_header_sized_only(self):
         """Samples must be signatures, not copies of asset content."""
         report = self._report()
-        for archive in report["archives"]:
-            for sample in archive.get("samples", []):
-                if "head_hex" in sample:
-                    self.assertLessEqual(
-                        len(sample["head_hex"]) // 2, probe.HEADER_BYTES
-                    )
+        self.assertTrue(report["signatures"])
+        for sig in report["signatures"]:
+            self.assertLessEqual(len(sig["head_hex"]) // 2, probe.HEADER_BYTES)
+            self.assertLessEqual(
+                len(sig["key_hex"]) // 2, probe.SIGNATURE_KEY_BYTES
+            )
+
+    def test_archives_record_sample_counts(self):
+        report = self._report()
+        game = next(a for a in report["archives"] if a["path"].endswith("GameData.pak"))
+        self.assertGreater(game["sampled"], 0)
+        self.assertEqual(game["sample_errors"], 0)
 
     # -- listing ---------------------------------------------------------
 

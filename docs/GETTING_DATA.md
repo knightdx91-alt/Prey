@@ -13,6 +13,7 @@ reverse-engineer is on file in `CLAUDE.md`. It is a plain access problem:
 | Storefront auth | Prey is sold through Steam, GOG and Bethesda.net. Downloading requires an account login, and on Steam a Steam Guard second factor. |
 | Credentials | An agent should not be handling your storefront account credentials, and you should not paste them into a chat session. This one is a hard line, not an inconvenience. |
 | Ephemeral container | The session container is reclaimed after inactivity. A 20+ GB download would not survive to the next session. |
+| Size | The install is ~41 GB. The container has ~30 GB free, so it could not be held here regardless. |
 | Git is not a game drive | GitHub caps files at 100 MB. Git LFS lifts that but its free tier is ~1 GB of storage and bandwidth. A full install does not fit, and pushing one would be a poor use of the quota regardless. |
 
 Verified in this environment: outbound HTTPS works and `store.steampowered.com`
@@ -101,6 +102,15 @@ For completeness, the other inputs available without your install:
   communities.
 - **The translation-layer stack** (Box64, Wine, DXVK, Mesa/Turnip) — all open
   source and fetchable, which matters for Phase 2.
+
+## The install size is a separate problem
+
+Prey Digital Deluxe is ~41 GB, and none of it needs to travel — the report is
+kilobytes to low megabytes, and deduplicates signatures so it stays flat as the
+install grows.
+
+Fitting 41 GB onto a *phone* is a real problem, but a different one. See
+`SIZE_BUDGET.md`.
 
 ## Summary
 
