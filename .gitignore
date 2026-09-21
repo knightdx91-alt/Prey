@@ -3,6 +3,15 @@ out/
 extracted/
 *.extracted/
 
+# Probe output from setup.sh. Ignored so a run never dirties the tree; commit
+# one deliberately with `git add -f prey-report.json` when it is worth keeping.
+device-report.json
+device-digest.txt
+prey-report.json
+prey-digest.txt
+budget.txt
+files.txt.gz
+
 # Game installs and data, wherever they get dropped
 game/
 gamedata/

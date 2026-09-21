@@ -83,7 +83,26 @@ turning out to be the largest remaining category.
 
 ## Quick start
 
-Survey your install — one command, no dependencies, nothing written to it:
+One command. Under Termux it installs what is missing, probes the device, and
+prints a digest to paste back:
+
+```sh
+git clone https://github.com/knightdx91-alt/Prey && cd Prey
+./setup.sh
+```
+
+**This needs no game files.** It answers the question that gates Phase 2 —
+whether the GPU is Adreno — and it takes about a minute.
+
+When you do have the game, point it at the install and it surveys that too:
+
+```sh
+./setup.sh ~/storage/shared/Prey
+```
+
+### Running the tools individually
+
+Survey an install — no dependencies, nothing written to it:
 
 ```sh
 python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json --digest digest.txt

@@ -22,24 +22,36 @@ Termux gives you a real Python on the phone. The Play Store build is
 deprecated — install from **F-Droid** or the project's GitHub releases.
 
 ```sh
-pkg update && pkg install python git
-termux-setup-storage          # grants access to shared storage; approve the prompt
-
+pkg install -y git
 git clone https://github.com/knightdx91-alt/Prey
 cd Prey
-
-# Point it at wherever the game files are. termux-setup-storage puts shared
-# storage at ~/storage/shared, and /storage/emulated/0 also works.
-python3 tools/probe/probe.py ~/storage/shared/Prey -o report.json --digest digest.txt
-
-cat digest.txt
-
-# And the device itself, which is also a project input
-pkg install vulkan-tools
-python3 tools/device/device.py --digest
+./setup.sh
 ```
 
-Copy what `cat` prints. Paste it into the chat. That is the whole transfer.
+`setup.sh` installs what is missing, requests storage access, probes the
+device, and prints a digest between two marker lines. Copy everything between
+them and paste it into the chat. That is the whole transfer.
+
+It needs no game files — the device half is useful on its own, and answers the
+question that gates Phase 2.
+
+When the game is on the device, re-run with its path. Shared storage lands at
+`~/storage/shared`, and `/storage/emulated/0` works too:
+
+```sh
+./setup.sh ~/storage/shared/Prey
+```
+
+That adds the install survey and the footprint model to the same output.
+
+### Doing it by hand
+
+`setup.sh` is only a wrapper. The individual tools work directly:
+
+```sh
+python3 tools/device/device.py --digest
+python3 tools/probe/probe.py ~/storage/shared/Prey -o report.json --digest digest.txt
+```
 
 The tools are standard-library-only Python 3.9+, so Termux needs nothing beyond
 `python`. No pip, no build step, no native extensions.
