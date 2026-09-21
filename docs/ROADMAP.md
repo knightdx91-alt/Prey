@@ -43,7 +43,12 @@ Needs work beyond the probe:
 Exit criterion: a documented, parseable path from a game install to geometry,
 textures, and materials in a form a renderer could consume.
 
-## Phase 2 — Reference runtime (the oracle)
+## Phase 2 — Translation layer (now the primary path, not just an oracle)
+
+**Do the cheap experiment first.** Install a Winlator-class environment and try
+to launch Prey. That one test bounds the whole project's ceiling and produces a
+work list of whatever fails. See `FEASIBILITY.md`.
+
 
 **Viable — confirmed.** Reference device is a Galaxy Z Fold 8, `SM-F971U`:
 SoC `SM8850` with `ro.hardware.egl = adreno`, so Snapdragon and Adreno, so
@@ -87,7 +92,20 @@ answer and mesh data does not.
 Exit criterion: the full game's data, converted, with a measured install size
 to replace the model's estimate.
 
-## Phase 4 — Native runtime
+## Phase 4 — Native runtime (OUT OF SCOPE)
+
+> **See `docs/FEASIBILITY.md`.** This phase is not a port. Prey runs on
+> Arkane's fork of CryEngine, so a native runtime means writing a Vulkan
+> renderer matching a modified engine, plus physics, animation, audio and
+> scripting — and then reimplementing Prey's game systems on top, from a
+> stripped binary with no decompilation to build on. Comparable projects
+> (devilutionX, OpenMW, Ship of Harkinian) targeted older, smaller games and
+> each had a decompilation or an open engine to start from. None of that
+> exists here.
+>
+> Kept below as a record of what it would entail, not as a plan.
+
+### Original scope, retained for reference
 
 - [ ] Android app shell, Gradle + NDK, ARM64
 - [ ] Vulkan device/swapchain bring-up
@@ -99,8 +117,9 @@ to replace the model's estimate.
 - [ ] Audio
 - [ ] Touch and gamepad input
 
-No exit criterion written yet. This phase is where the multi-year estimate
-lives, and dates set before Phase 1 finishes would be invented.
+No exit criterion, because there is no realistic solo path to one. The
+achievable goal is the translation layer plus the asset pipeline — see
+`FEASIBILITY.md` for the reframe.
 
 ## Not doing
 
