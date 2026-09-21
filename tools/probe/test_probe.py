@@ -276,3 +276,91 @@ class ProbeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DigestTest(unittest.TestCase):
+    """The digest is the paste-sized transfer channel; it must stay small
+    without dropping the parts that matter."""
+
+    def setUp(self) -> None:
+        self.report = {
+            "probe_version": 1,
+            "install_name": "Prey",
+            "platform": "Windows",
+            "binaries": {"count": 40, "audio_middleware_detected": ["Wwise (via CryEngine ATL)"]},
+            "archives": [{"lua": {"source": 120, "bytecode": 4}}],
+            "totals": {
+                "archives": 42, "archives_unreadable": 0, "total_entries": 118432,
+                "uncompressed_size": 42_000_000_000, "compressed_size": 39_000_000_000,
+                "entries_needing_crypak_decoding": 17,
+                "methods": {"deflate": 118201, "store": 214, "deflate+encrypt": 17},
+                "extensions": {f".ext{i}": 100 - i for i in range(50)},
+            },
+            "signatures": [
+                {
+                    "key_hex": f"{i:032x}", "head_hex": f"{i:0128x}",
+                    "identified": None if i % 3 == 0 else "DirectDraw Surface",
+                    "extensions": {".dds": 5}, "count": 200 - i,
+                    "examples": [{"name": f"Textures/t{i}.dds", "size": 100}],
+                }
+                for i in range(120)
+            ],
+            "chunk_variants": [
+                {"header": "legacy", "version": 1862, "file_type": 4294901760,
+                 "extensions": {".cgf": 9}, "count": 8821, "examples": ["a.cgf"]},
+            ],
+        }
+
+    def test_digest_is_paste_sized(self):
+        text = probe.digest(self.report)
+        self.assertLess(len(text), 20_000, "digest should stay pasteable")
+
+    def test_digest_carries_the_headline_facts(self):
+        text = probe.digest(self.report)
+        for expected in ("PREY PROBE DIGEST", "install=Prey", "archives=42",
+                         "Wwise (via CryEngine ATL)", "lua source=120 bytecode=4",
+                         "crypak_only_entries=17", "deflate+encrypt",
+                         "header=legacy version=1862", "END DIGEST"):
+            self.assertIn(expected, text, expected)
+
+    def test_signatures_are_capped_but_noted(self):
+        text = probe.digest(self.report, top_sig=10)
+        self.assertIn("top 10 of 120", text)
+        self.assertIn("110 more", text)
+
+    def test_unrecognized_section_is_never_truncated(self):
+        """The unidentified formats are the work queue; losing them defeats
+        the point of sending a digest at all."""
+        text = probe.digest(self.report, top_sig=5)
+        unknown = [s for s in self.report["signatures"] if not s["identified"]]
+        self.assertIn(f"UNRECOGNIZED ({len(unknown)}, all listed)", text)
+        for sig in unknown:
+            self.assertIn(sig["key_hex"], text)
+
+    def test_digest_handles_a_minimal_report(self):
+        bare = {
+            "probe_version": 1, "install_name": "x", "platform": "Linux",
+            "binaries": {"count": 0, "audio_middleware_detected": ["UNDETERMINED"]},
+            "archives": [], "signatures": [], "chunk_variants": [],
+            "totals": {
+                "archives": 0, "archives_unreadable": 0, "total_entries": 0,
+                "uncompressed_size": 0, "compressed_size": 0,
+                "entries_needing_crypak_decoding": 0, "methods": {}, "extensions": {},
+            },
+        }
+        self.assertIn("END DIGEST", probe.digest(bare))
+
+    def test_cli_writes_digest_to_file(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "Prey")
+            os.makedirs(root)
+            with zipfile.ZipFile(os.path.join(root, "a.pak"), "w") as z:
+                z.writestr("Objects/m.cgf", CGF_LEGACY)
+            out = os.path.join(tmp, "r.json")
+            dig = os.path.join(tmp, "d.txt")
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                probe.main([root, "-o", out, "--digest", dig])
+            with open(dig, encoding="utf-8") as fh:
+                self.assertIn("PREY PROBE DIGEST", fh.read())

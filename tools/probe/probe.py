@@ -365,6 +365,85 @@ def write_listing(archives_on_disk: list[str], root: str, dest: str) -> int:
     return written
 
 
+def digest(report: dict[str, Any], top_ext: int = 30, top_sig: int = 60) -> str:
+    """Render the report as a dense text block small enough to paste in chat.
+
+    The full JSON can reach a few megabytes on a real install, which is awkward
+    to move from a phone. Almost all of its value, though, is in a few hundred
+    lines: the histograms, the distinct header signatures, and the chunk
+    variants. This is that, and nothing else -- typically a handful of KB.
+    """
+    totals = report["totals"]
+    binaries = report["binaries"]
+    out: list[str] = []
+    add = out.append
+
+    add(f"PREY PROBE DIGEST v{report.get('probe_version', '?')}")
+    add(f"install={report.get('install_name', '?')} "
+        f"platform={report.get('platform', '?')} "
+        f"archives={totals['archives']} "
+        f"unreadable={totals['archives_unreadable']} "
+        f"entries={totals['total_entries']}")
+    add(f"uncompressed={_human(totals['uncompressed_size'])} "
+        f"compressed={_human(totals['compressed_size'])}")
+    add(f"audio={'; '.join(binaries['audio_middleware_detected'])} "
+        f"binaries={binaries['count']}")
+    add(f"crypak_only_entries={totals['entries_needing_crypak_decoding']}")
+
+    lua = [a["lua"] for a in report["archives"] if "lua" in a]
+    if lua:
+        src = sum(l["source"] for l in lua)
+        bc = sum(l["bytecode"] for l in lua)
+        add(f"lua source={src} bytecode={bc}")
+
+    add("")
+    add("METHODS")
+    for name, count in totals["methods"].items():
+        flag = "" if name in ("store", "deflate") else "   <-- CryEngine codec"
+        add(f"  {count:>8} {name}{flag}")
+
+    add("")
+    add(f"EXT (top {top_ext} of {len(totals['extensions'])})")
+    for ext, count in list(totals["extensions"].items())[:top_ext]:
+        add(f"  {count:>8} {ext}")
+
+    signatures = report.get("signatures", [])
+    shown = signatures[:top_sig]
+    add("")
+    add(f"SIG (top {len(shown)} of {len(signatures)} distinct header signatures)")
+    for sig in shown:
+        exts = ",".join(sorted(sig["extensions"]))
+        label = sig["identified"] or "UNRECOGNIZED"
+        add(f"  {sig['count']:>8} {exts:<14} {sig['key_hex']}  {label}")
+    if len(signatures) > top_sig:
+        add(f"  ... {len(signatures) - top_sig} more (full set is in the JSON)")
+
+    variants = report.get("chunk_variants", [])
+    if variants:
+        add("")
+        add("CHUNK VARIANTS")
+        for v in variants:
+            bits = " ".join(
+                f"{k}={v[k]}" for k in ("header", "version", "file_type") if k in v
+            )
+            exts = ",".join(sorted(v["extensions"]))
+            add(f"  {v['count']:>8} {exts:<14} {bits}")
+
+    # Never truncated: these are the formats nobody has identified yet, which
+    # is precisely the part worth carrying back.
+    unknown = [s for s in signatures if not s["identified"]]
+    if unknown:
+        add("")
+        add(f"UNRECOGNIZED ({len(unknown)}, all listed) — format work queue")
+        for sig in unknown:
+            example = sig["examples"][0]["name"] if sig["examples"] else "?"
+            add(f"  {sig['count']:>8} {sig['key_hex']}  {example}")
+
+    add("")
+    add("END DIGEST")
+    return "\n".join(out)
+
+
 def _human(n: float) -> str:
     for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
         if n < 1024 or unit == "TiB":
@@ -446,6 +525,10 @@ def main(argv: list[str] | None = None) -> int:
         "--listing", metavar="FILE.txt.gz",
         help="also write every entry name to a gzipped listing (large; opt-in)",
     )
+    parser.add_argument(
+        "--digest", nargs="?", const="-", metavar="FILE",
+        help="also write a paste-sized text digest (default: stdout)",
+    )
     args = parser.parse_args(argv)
 
     root = os.path.abspath(args.install)
@@ -480,6 +563,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.listing:
         count = write_listing(archives_on_disk, root, args.listing)
         print(f"listing: {count} entries -> {args.listing}", file=sys.stderr)
+
+    if args.digest:
+        text = digest(report)
+        if args.digest == "-":
+            print(text)
+        else:
+            with open(args.digest, "w", encoding="utf-8") as fh:
+                fh.write(text + "\n")
+            print(f"digest: {len(text)} chars -> {args.digest}", file=sys.stderr)
 
     report["_output"] = args.output
     print_summary(report)

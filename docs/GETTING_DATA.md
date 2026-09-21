@@ -20,6 +20,10 @@ Verified in this environment: outbound HTTPS works and `store.steampowered.com`
 is reachable, but that yields the *store page*, not the game. GitHub access is
 scope-limited to this repository. No game data is present on the container.
 
+**For the concrete steps — including doing all of it on a phone — see
+[`TRANSFER.md`](TRANSFER.md).** This document covers why the workflow is shaped
+the way it is.
+
 ## So how does the work actually happen?
 
 The data stays on your machine. Only *facts about* the data travel.
@@ -52,13 +56,14 @@ them.
    library only, read-only, no install step:
 
    ```sh
-   python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
+   python3 tools/probe/probe.py "/path/to/Prey" -o report.json --digest digest.txt
    ```
 
-2. **You share `prey-report.json`.** Commit it, or paste it. It is a few
-   hundred KB of counts, histograms and 64-byte header hex dumps. It carries
-   no asset content, and it records relative paths only — never the absolute
-   install path, which on Windows would contain your account name.
+2. **You share the digest.** Paste `digest.txt` into the chat — it is usually
+   under 20 KB — or commit `report.json` for the fuller version. Both carry
+   counts, histograms and 64-byte header hex dumps, no asset content, and
+   relative paths only, never the absolute install path (which on Windows
+   would contain your account name).
 
 3. **The agent turns it into VERIFIED entries** in `ASSET_FORMATS.md` and uses
    it to write real parsers. Then the loop runs again, deeper each time.

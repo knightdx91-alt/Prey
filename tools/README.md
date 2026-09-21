@@ -12,11 +12,22 @@ tool to run **first**, and usually the only one the owner of the data needs to
 run by hand.
 
 ```sh
-python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
+# JSON report plus a paste-sized text digest
+python3 tools/probe/probe.py "/path/to/Prey" -o report.json --digest digest.txt
+
+# Digest straight to stdout, to copy out of a terminal
+python3 tools/probe/probe.py "/path/to/Prey" -o report.json --digest
 
 # Optionally, every entry name across every archive (large, gzipped)
-python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json --listing files.txt.gz
+python3 tools/probe/probe.py "/path/to/Prey" -o report.json --listing files.txt.gz
 ```
+
+`--digest` is the one that matters for getting findings off a phone: a dense
+text block, usually under 20 KB, holding the histograms, every distinct header
+signature, the chunk variants and an explicit queue of formats nothing
+recognized. Signature listing is capped to stay pasteable — except the
+UNRECOGNIZED section, which is never truncated, since that is the part worth
+carrying back. See `docs/TRANSFER.md`.
 
 It reads the install read-only and records:
 

@@ -60,7 +60,9 @@ answerable from *metadata* measured in kilobytes. So the loop is: you run a
 read-only survey locally, share the small report it produces, and the findings
 and parsers improve from there.
 
-See [`docs/GETTING_DATA.md`](docs/GETTING_DATA.md) for the full rationale.
+**[`docs/TRANSFER.md`](docs/TRANSFER.md) is the step-by-step version**, including
+running everything on an Android phone via Termux. See
+[`docs/GETTING_DATA.md`](docs/GETTING_DATA.md) for the rationale behind it.
 
 The install is ~41 GB, which matters for the *port* rather than for this
 workflow. [`docs/SIZE_BUDGET.md`](docs/SIZE_BUDGET.md) works that arithmetic
@@ -72,11 +74,13 @@ turning out to be the largest remaining category.
 Survey your install — one command, no dependencies, nothing written to it:
 
 ```sh
-python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
+python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json --digest digest.txt
 ```
 
-That report is the thing to share. It contains counts, histograms and 64-byte
-header signatures — no asset content, and no absolute paths.
+`digest.txt` is the thing to share — a dense text block, usually under 20 KB,
+small enough to paste straight into a chat. It holds counts, histograms,
+64-byte header signatures and a list of formats nothing recognized yet. No
+asset content, and no absolute paths.
 
 To look inside a specific archive:
 
