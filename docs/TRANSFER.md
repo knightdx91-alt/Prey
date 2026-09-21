@@ -32,6 +32,14 @@ cd Prey
 device, and prints a digest between two marker lines. Copy everything between
 them and paste it into the chat. That is the whole transfer.
 
+> **Expected noise on first install.** Termux's `git` package depends on
+> `openssh`, so installing it generates three sshd host keys and prints their
+> fingerprints and randomart. That is normal and needs no action. The
+> fingerprints are public by design — they identify a server, they are not
+> secrets. Termux then suggests enabling the `sshd` and `ssh-agent` services;
+> **nothing here needs either**, so skip that unless you want SSH into the
+> phone for your own reasons.
+
 It needs no game files — the device half is useful on its own, and answers the
 question that gates Phase 2.
 
