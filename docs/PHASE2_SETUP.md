@@ -78,7 +78,46 @@ Named with the staleness warning above firmly in mind.
    wrappers over a similar stack. Worth trying if the above stall.
 
 Do not over-invest in choosing. Install one, get a result, and let the failure
-mode tell you whether to switch.
+mode tell you whether to switch. They are APKs and coexist happily — installing
+two costs storage, not time.
+
+### Mainline vs. a performance fork
+
+The reliable distinction is structural, not a feature list. Mainline is the
+reference implementation: conservative release cadence, broadest testing, and
+the version every troubleshooting thread assumes. Forks exist because that
+cadence is slow relative to how fast the underlying components move, so they
+track Box64, Wine, DXVK and the graphics drivers more aggressively.
+
+What forks typically change, in rough order of impact:
+
+| Area | Why it matters |
+|---|---|
+| **Bundled graphics drivers** | Which Turnip builds ship, and whether vendor-driver passthrough is offered. The single biggest lever on new Adreno silicon. |
+| **Box64 version and tuning presets** | Directly sets CPU emulation overhead. |
+| **Wine version** | Newer Wine means better per-title compatibility. |
+| **DXVK version** | Matters for D3D11 titles, which includes Prey. |
+| **libc** | Bionic-linked builds carry less overhead than bundled glibc. |
+| **UI and container management** | Per-game profiles, input mapping. Convenience, not performance. |
+
+### Which to reach for on Adreno 840
+
+The driver row decides it. New silicon is exactly the case where mainline's
+conservative bundling hurts — a fork shipping newer or more numerous Turnip
+builds has better odds of having something that handles an Adreno 840 at all.
+
+Against that, mainline is what the community documents, so when something
+breaks it is the one people can help with.
+
+Practical resolution: **install both.** Check the graphics driver list in each
+before running anything. Whichever offers more options for this GPU is the one
+to try first; keep the other for when you need to ask someone why something
+broke.
+
+> Confidence: the structural distinction and the table above are stable
+> characteristics of how these forks work. Which specific fork is currently
+> fastest, best maintained, or even still alive is **not** verifiable from this
+> session and changes on a scale of months.
 
 ## Prey-specific concerns
 
