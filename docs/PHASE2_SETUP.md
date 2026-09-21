@@ -38,6 +38,30 @@ Measured, from `docs/DEVICE.md`: Vulkan 1.4.295, Qualcomm driver 512.842.19,
 Adreno 840. That is a modern Vulkan level, so the hardware is not the
 constraint — driver maturity is.
 
+## Where to get it
+
+Not on the Play Store — these are sideloaded APKs, published on each project's
+own GitHub releases page:
+
+| Build | Source |
+|---|---|
+| Winlator (mainline) | `github.com/brunodev85/winlator` → Releases |
+| Winlator Cmod | `github.com/coffincolors/winlator` → Releases |
+
+Install on Android:
+
+1. Open the releases page in Chrome on the phone and download the `.apk`
+2. Android prompts about installing from an unknown source — allow it for
+   Chrome when asked
+3. Open the downloaded file to install
+
+The APKs are large (Wine and its dependencies are bundled), and some builds
+fetch further components on first run, so do this on wifi.
+
+Take these from the projects' own release pages rather than an APK mirror
+site. Mirrors repackage installers, and a repackaged APK is a common malware
+vector — an engineering hygiene point, nothing more.
+
 ## Builds to try, in order
 
 Named with the staleness warning above firmly in mind.
