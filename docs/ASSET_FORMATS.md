@@ -87,6 +87,17 @@ which matters when the target is ARM64.
 
 ## Next
 
-Open a real install, run `paktool stats` against it, and start promoting things
-in this file from UNVERIFIED to VERIFIED. The tooling is written to make the
-first step cheap; the value is in recording what it finds.
+Run the probe against a real install and promote entries in this file from
+UNVERIFIED to VERIFIED against what it reports:
+
+```sh
+python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
+```
+
+A single run settles, at minimum: which compression methods CryPak actually
+uses, the real extension inventory, the `.cgf`/`.chr` chunk header layout and
+version numbers, the audio middleware (from the ATL implementation DLL), and
+whether Lua ships as source or bytecode — five of the open questions in
+`ARCHITECTURE.md`, from one command.
+
+The game data itself never has to move. See `GETTING_DATA.md`.

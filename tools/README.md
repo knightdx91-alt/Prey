@@ -5,6 +5,36 @@ no dependencies to install, so these run anywhere a game install can be mounted.
 
 None of these ship game data. They read from a copy you already own.
 
+## probe
+
+Surveys a whole Prey install and writes a single small JSON report. This is the
+tool to run **first**, and usually the only one the owner of the data needs to
+run by hand.
+
+```sh
+python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
+
+# Optionally, every entry name across every archive (large, gzipped)
+python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json --listing files.txt.gz
+```
+
+It reads the install read-only and records:
+
+- every `.pak`, with entry counts, sizes, and compression-method histograms
+- the extension inventory across the whole install
+- 64-byte header samples per file type, with known magics identified
+- `.cgf`/`.chr` chunk header layout and version numbers
+- the audio middleware, inferred from the CryEngine ATL implementation DLL
+- Lua source-versus-bytecode counts
+
+**What it does not do:** copy asset content, or record absolute paths. Samples
+are capped at 64 bytes — enough for a magic number and a version field, far too
+few to constitute a copy of anything. Paths are stored relative to the install
+root, because a Windows install path would carry your account name.
+
+The report is a few hundred KB and is meant to be committed or pasted back. See
+`docs/GETTING_DATA.md` for why the workflow is shaped this way.
+
 ## paktool
 
 Inspects and extracts CryPak (`.pak`) archives.
@@ -40,6 +70,7 @@ could not be parsed at all.
 
 ```sh
 python3 -m unittest discover -s tools/paktool -v
+python3 -m unittest discover -s tools/probe -v
 ```
 
 Fixtures are generated at runtime, so the suite needs no game data and commits

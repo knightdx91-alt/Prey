@@ -11,19 +11,32 @@ so it should not start until the data model is pinned down.
 - [x] Format hypotheses recorded with confidence markers
 - [x] Git LFS configured for large binaries
 - [x] `paktool` — CryPak inspection and extraction
+- [x] `probe` — whole-install survey, so findings travel without the assets
+- [x] Data-sharing workflow documented (`docs/GETTING_DATA.md`)
 
 ## Phase 1 — Data archaeology
 
 The goal of this phase is to replace every **UNVERIFIED** in
 `docs/ASSET_FORMATS.md` with something traceable to bytes.
 
-- [ ] Run `paktool stats` against a real install; record the archive inventory
-- [ ] Confirm whether standard ZIP parsing suffices, and catalog what it misses
-- [ ] Extension histogram across all archives — establishes what actually ships
-- [ ] `.cgf`/`.chr` chunk table parser; record chunk types and versions
+**Blocked on one probe run.** The game data stays on the owner's machine; the
+survey is what crosses. See `GETTING_DATA.md`.
+
+Settled by the first `probe` run:
+
+- [ ] Archive inventory across the whole install
+- [ ] Whether standard ZIP parsing suffices, and exactly what it misses
+- [ ] Extension histogram — what actually ships, versus what docs imply
+- [ ] `.cgf`/`.chr` chunk header layout and version numbers
+- [ ] Audio middleware, from the ATL implementation DLL
+- [ ] Lua as source or bytecode
+
+Needs work beyond the probe:
+
+- [ ] Full `.cgf` chunk *table* parser (the probe reads only the file header)
 - [ ] `.dds` inspection, including the split-mip companion files
-- [ ] Identify the audio middleware from the shipped binaries
-- [ ] Determine whether Lua ships as source or bytecode
+- [ ] `.mtl` parsing, including CryEngine binary XML if that is what ships
+- [ ] CryPak custom codecs, for whatever the probe flags as undecodable
 
 Exit criterion: a documented, parseable path from a game install to geometry,
 textures, and materials in a form a renderer could consume.

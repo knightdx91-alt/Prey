@@ -39,7 +39,8 @@ product.
 
 | Path | What lives there |
 |---|---|
-| `docs/` | Architecture, format notes, roadmap |
+| `docs/` | Architecture, format notes, roadmap, data workflow |
+| `tools/probe/` | Whole-install survey — the report you share |
 | `tools/paktool/` | CryPak (`.pak`) inspection and extraction |
 
 ## Requirements
@@ -47,15 +48,46 @@ product.
 - Python 3.9+ for the tooling in `tools/`
 - Your own legally acquired copy of Prey. **No game data is distributed here.**
 
+## How the data works
+
+**The game files stay on your machine.** They are not in this repo and cannot
+be — a storefront login is required to download Prey, an agent has no business
+holding your credentials, and a 20+ GB install does not belong in Git.
+
+It turns out not to matter much. Nearly every open format question is
+answerable from *metadata* measured in kilobytes. So the loop is: you run a
+read-only survey locally, share the small report it produces, and the findings
+and parsers improve from there.
+
+See [`docs/GETTING_DATA.md`](docs/GETTING_DATA.md) for the full rationale.
+
 ## Quick start
 
-Point the pak tool at a game install and see what is inside:
+Survey your install — one command, no dependencies, nothing written to it:
 
 ```sh
-python3 tools/paktool/paktool.py list  "/path/to/Prey/GameSDK/GameData.pak"
-python3 tools/paktool/paktool.py stats "/path/to/Prey/GameSDK/GameData.pak"
-python3 tools/paktool/paktool.py extract "/path/to/Prey/GameSDK/GameData.pak" -o out/
+python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
 ```
+
+That report is the thing to share. It contains counts, histograms and 64-byte
+header signatures — no asset content, and no absolute paths.
+
+To look inside a specific archive:
+
+```sh
+python3 tools/paktool/paktool.py stats "/path/to/Prey/GameSDK/GameData.pak"
+python3 tools/paktool/paktool.py list  "$PAK" -l -p '*.cgf'
+python3 tools/paktool/paktool.py extract "$PAK" -o out/ -p 'Materials/*'
+```
+
+## Tests
+
+```sh
+python3 -m unittest discover -s tools/paktool -v
+python3 -m unittest discover -s tools/probe -v
+```
+
+Fixtures are generated at runtime; no game data is required to run them.
 
 ## Workflow
 
