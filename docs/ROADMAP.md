@@ -45,13 +45,13 @@ textures, and materials in a form a renderer could consume.
 
 ## Phase 2 — Reference runtime (the oracle)
 
-**Probably viable; confirm before committing effort.** Reference device is a
-Galaxy Z Fold 8, `SM-F971U`. The `U` suffix marks the US variant, and those have
-consistently shipped Qualcomm parts — so Adreno, and so Turnip, which is what
-this phase depends on. That is an inference from naming conventions, not a
-measurement, so run `tools/device/device.py` first. See `docs/DEVICE.md`.
+**Viable — confirmed.** Reference device is a Galaxy Z Fold 8, `SM-F971U`:
+SoC `SM8850` with `ro.hardware.egl = adreno`, so Snapdragon and Adreno, so
+Turnip applies. See `docs/DEVICE.md`.
 
-- [ ] Confirm the GPU family, Vulkan version, and texture format support
+- [x] Confirm the GPU family — Adreno, measured
+- [ ] Vulkan version and texture format support — the Termux probe returned
+      llvmpipe (software), so this needs a native Android Vulkan capability app
 - [ ] Box64/FEX + Wine + DXVK + Turnip bring-up (Adreno path)
 - [ ] Get to a main menu; record everything that breaks getting there
 - [ ] Capture reference frames for the native renderer to diff against
@@ -68,6 +68,10 @@ mobile build near 9.5 GB, and names geometry — not textures — as the largest
 remaining category, because texture compression has a well-understood mobile
 answer and mesh data does not.
 
+- [ ] Decide the conversion strategy: on-device needs ~50 GB peak (41 GB source
+      alongside its output) against 26.64 GB free. Incremental conversion —
+      releasing each source archive as its output lands — keeps the peak near
+      `output + largest archive` instead
 - [ ] Mesh optimization and vertex stream repacking **(largest category after
       reduction; start here, against instinct)**
 - [ ] LOD policy — decide what a phone actually needs

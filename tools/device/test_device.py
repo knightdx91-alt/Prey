@@ -291,3 +291,111 @@ class ModelDecodeTest(unittest.TestCase):
         text = device.digest(report)
         self.assertIn("soc_prior=", text)
         self.assertIn("prior only", text)
+
+
+class SoftwareRendererTest(unittest.TestCase):
+    """Termux loads Mesa's software rasterizer in place of the vendor driver.
+    Reporting its capabilities as the device's is worse than reporting nothing,
+    because it looks like a measurement."""
+
+    def test_detects_known_software_renderers(self):
+        for name in ("llvmpipe (LLVM 21.1.8, 128 bits)", "lavapipe",
+                     "SwiftShader Device", "softpipe"):
+            self.assertTrue(device.is_software_renderer(name), name)
+
+    def test_does_not_flag_real_gpus(self):
+        for name in ("Adreno (TM) 840", "Mali-G720", "Samsung Xclipse 950"):
+            self.assertFalse(device.is_software_renderer(name), name)
+
+    def test_empty_name_is_not_software(self):
+        self.assertFalse(device.is_software_renderer(""))
+        self.assertFalse(device.is_software_renderer(None))
+
+    def test_vulkan_read_marks_software_and_warns(self):
+        summary = """
+            apiVersion = 1.4.335
+            deviceName = llvmpipe (LLVM 21.1.8, 128 bits)
+            textureCompressionASTC_LDR = false
+        """
+        with mock.patch.object(device.shutil, "which", return_value="/usr/bin/vulkaninfo"), \
+                mock.patch.object(device, "run", return_value=summary), \
+                mock.patch.object(device, "find_vendor_vulkan", return_value=[]):
+            info = device.read_vulkan()
+        self.assertTrue(info["software"])
+        self.assertIn("SOFTWARE", info["warning"])
+        self.assertIn("meaningless", info["warning"])
+
+    def test_real_gpu_is_not_marked_software(self):
+        summary = "apiVersion = 1.3.274\ndeviceName = Adreno (TM) 840\n"
+        with mock.patch.object(device.shutil, "which", return_value="/usr/bin/vulkaninfo"), \
+                mock.patch.object(device, "run", return_value=summary):
+            info = device.read_vulkan()
+        self.assertFalse(info["software"])
+        self.assertNotIn("warning", info)
+
+    def test_digest_shouts_about_software_rendering(self):
+        report = {
+            "is_android": True, "machine": "aarch64", "model_decoded": None,
+            "properties": {}, "cpu": {"cores": 8}, "memory": {}, "storage": [],
+            "gpu": {"family": "adreno", "note": ""},
+            "vulkan": {"available": True, "software": True,
+                       "device_name": "llvmpipe (LLVM 21.1.8, 128 bits)",
+                       "astc_ldr": False, "bc": False, "etc2": False,
+                       "vendor_drivers": ["/vendor/lib64/hw/vulkan.adreno.so"]},
+        }
+        text = device.digest(report)
+        self.assertIn("SOFTWARE-ONLY", text)
+        self.assertIn("NOT THE GPU", text)
+        self.assertIn("means nothing here", text)
+        self.assertIn("vulkan.adreno.so", text)
+        # The bogus values must never appear as if they were measurements.
+        self.assertNotIn("astc_ldr=False astc_hdr=", text)
+
+    def test_finds_vendor_drivers(self):
+        listing = {"/vendor/lib64/hw": ["vulkan.adreno.so", "gralloc.so", "vulkan.msm.so"]}
+
+        def fake_listdir(path):
+            if path in listing:
+                return listing[path]
+            raise OSError("no such directory")
+
+        with mock.patch.object(device.os, "listdir", side_effect=fake_listdir):
+            found = device.find_vendor_vulkan()
+        self.assertEqual(found, ["/vendor/lib64/hw/vulkan.adreno.so",
+                                 "/vendor/lib64/hw/vulkan.msm.so"])
+
+
+class ConversionPeakTest(unittest.TestCase):
+    """Converting needs the source install present alongside its output, so
+    free space must be checked against the sum, not the output alone."""
+
+    def _digest(self, free_gb: float) -> str:
+        return device.digest({
+            "is_android": True, "machine": "aarch64", "model_decoded": None,
+            "properties": {}, "cpu": {"cores": 8}, "memory": {},
+            "storage": [{"label": "home", "path": "/home",
+                         "total": int(221 * GB), "free": int(free_gb * GB)}],
+            "vulkan": {"available": False}, "gpu": {"family": "adreno", "note": ""},
+        })
+
+    def test_reports_both_output_and_conversion_peak(self):
+        text = self._digest(26.64)
+        self.assertIn("converted output alone", text)
+        self.assertIn("during conversion", text)
+
+    def test_output_fits_while_conversion_does_not(self):
+        """The exact case the reference device is in: enough room for the
+        result, not enough to produce it in place."""
+        text = self._digest(26.64)
+        output_block, peak_block = text.split("during conversion")
+        self.assertIn("fits", output_block.split("converted output alone")[1])
+        self.assertIn("short by", peak_block)
+
+    def test_ample_space_passes_both(self):
+        text = self._digest(120)
+        self.assertNotIn("short by", text)
+
+    def test_peak_is_source_plus_output(self):
+        text = self._digest(1)
+        expected = device.SOURCE_GB + 9.5
+        self.assertIn(f"{expected:.1f} GB", text)

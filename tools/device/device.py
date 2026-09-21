@@ -104,6 +104,43 @@ def decode_samsung_model(model: str) -> dict[str, Any] | None:
     return info
 
 
+# Software Vulkan implementations. Under Termux these load in place of the
+# vendor driver, and their capabilities are the CPU's, not the GPU's. Reporting
+# them as the device's is worse than reporting nothing, because it looks like a
+# measurement -- so they are detected and flagged rather than trusted.
+SOFTWARE_RENDERERS = ("llvmpipe", "lavapipe", "swiftshader", "softpipe")
+
+# Desktop install size, and the modelled Android outputs from
+# docs/SIZE_BUDGET.md. Both are estimates; see that document.
+SOURCE_GB = 41.0
+BUDGET_PROFILES = (("aggressive", 6.7), ("balanced", 9.5), ("quality", 20.9))
+
+# Where Android keeps the vendor Vulkan driver. Termux can usually stat these
+# even when it cannot load them, which is enough to confirm the real driver
+# exists and name it.
+VENDOR_VULKAN_DIRS = (
+    "/vendor/lib64/hw", "/vendor/lib/hw", "/system/lib64/hw", "/system/lib/hw",
+)
+
+
+def find_vendor_vulkan() -> list[str]:
+    """Locate the hardware Vulkan drivers present on the device."""
+    found = []
+    for directory in VENDOR_VULKAN_DIRS:
+        try:
+            for name in sorted(os.listdir(directory)):
+                if name.startswith("vulkan.") and name.endswith(".so"):
+                    found.append(f"{directory}/{name}")
+        except OSError:
+            continue
+    return found
+
+
+def is_software_renderer(name: str) -> bool:
+    lowered = (name or "").lower()
+    return any(marker in lowered for marker in SOFTWARE_RENDERERS)
+
+
 # OpenGL ES version property is an encoded integer: 0xMMMMmmmm.
 def decode_gles(value: str) -> str | None:
     try:
@@ -246,12 +283,22 @@ def read_vulkan() -> dict[str, Any]:
         if match:
             info[key] = match.group(1).strip()
 
-    # Texture format support decides the asset pipeline outright.
+    # Texture format support decides the asset pipeline outright -- but only if
+    # it came from the real driver.
     lowered = text.lower()
     info["astc_ldr"] = "textureCompressionASTC_LDR".lower() in lowered
     info["astc_hdr"] = "textureCompressionASTC_HDR".lower() in lowered
     info["bc"] = "texturecompressionbc" in lowered
     info["etc2"] = "texturecompressionetc2" in lowered
+
+    info["software"] = is_software_renderer(info.get("device_name", ""))
+    if info["software"]:
+        info["warning"] = (
+            "This is a SOFTWARE rasterizer, not the GPU. Every capability above "
+            "describes the CPU fallback. Texture format results are meaningless "
+            "for this device -- re-measure with a native Android Vulkan app."
+        )
+        info["vendor_drivers"] = find_vendor_vulkan()
     return info
 
 
@@ -347,7 +394,17 @@ def digest(report: dict[str, Any]) -> str:
         add(f"opengl_es={report['opengl_es']}")
 
     vk = report["vulkan"]
-    if vk.get("available"):
+    if vk.get("available") and vk.get("software"):
+        add(f"vulkan=SOFTWARE-ONLY device={vk.get('device_name', '?')}")
+        add("  !! NOT THE GPU — this is a CPU rasterizer loaded by Termux.")
+        add("  !! Texture format support below is the CPU's and means nothing here.")
+        add(f"  (reported anyway) astc_ldr={vk.get('astc_ldr')} "
+            f"bc={vk.get('bc')} etc2={vk.get('etc2')}")
+        for driver in vk.get("vendor_drivers", []):
+            add(f"  hardware driver present: {driver}")
+        if not vk.get("vendor_drivers"):
+            add("  no vendor vulkan.*.so found in the usual paths")
+    elif vk.get("available"):
         add(f"vulkan={vk.get('api_version', '?')} device={vk.get('device_name', '?')}")
         add(f"astc_ldr={vk.get('astc_ldr')} astc_hdr={vk.get('astc_hdr')} "
             f"bc={vk.get('bc')} etc2={vk.get('etc2')}")
@@ -363,10 +420,21 @@ def digest(report: dict[str, Any]) -> str:
     add("")
     add("BUDGET CHECK (docs/SIZE_BUDGET.md)")
     best = max((e["free"] for e in report["storage"]), default=0)
-    for label, need_gb in (("aggressive", 6.7), ("balanced", 9.5), ("quality", 20.9)):
+    add(f"  free now {_size(best)}")
+    add("  converted output alone:")
+    for label, need_gb in BUDGET_PROFILES:
         need = need_gb * 1024 ** 3
         verdict = "fits" if best >= need else f"short by {_size(need - best)}"
-        add(f"  {label:<12} needs {need_gb:>5.1f} GB   {verdict}")
+        add(f"    {label:<12} {need_gb:>5.1f} GB   {verdict}")
+
+    # Converting needs the source install present at the same time as its
+    # output, so the peak is the sum -- which is the number that actually
+    # decides whether the pipeline can run on-device.
+    add(f"  during conversion (source {SOURCE_GB:.0f} GB + output):")
+    for label, need_gb in BUDGET_PROFILES:
+        peak = (SOURCE_GB + need_gb) * 1024 ** 3
+        verdict = "fits" if best >= peak else f"short by {_size(peak - best)}"
+        add(f"    {label:<12} {SOURCE_GB + need_gb:>5.1f} GB   {verdict}")
 
     add("")
     add("END DIGEST")

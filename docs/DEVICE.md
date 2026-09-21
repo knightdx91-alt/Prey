@@ -96,19 +96,84 @@ while running. For Phase 4 this is real design work, not a detail:
   minute will overstate what an hour of play delivers — worth measuring over a
   sustained run, not a burst.
 
-## Current status
+## Current status — first probe complete
 
-| Fact | State |
-|---|---|
-| Model | `SM-F971U` — **given** |
-| Family / region | Galaxy Z Fold, US variant — **derived from the model number** |
-| GPU vendor | Adreno — **inferred**, high confidence, unmeasured |
-| Vulkan version, texture formats | **unknown** |
-| RAM, CPU clusters, free storage | **unknown** |
+Run on 2026-09-21. The decisive question is answered.
 
-One probe run turns every "inferred" and "unknown" above into a measurement:
+### Measured
 
-```sh
-pkg install python vulkan-tools
-python3 tools/device/device.py --digest
-```
+| Fact | Value | Source |
+|---|---|---|
+| Model | `SM-F971U` (codename `h8q`) | `ro.product.model` |
+| ABI | `arm64-v8a` | `ro.product.cpu.abi` |
+| Android | 17 (SDK 37) | `ro.build.version.*` |
+| SoC | `SM8850`, platform `canoe` | `ro.soc.model` |
+| **GPU family** | **Adreno** | `ro.hardware.egl` |
+| OpenGL ES | 3.2 | `ro.opengles.version` |
+| CPU | 8 cores, clusters at 4742 / 3628 MHz | `sysfs` |
+| RAM | 10.83 GB total, 3.09 GB free at probe time | `/proc/meminfo` |
+| Storage | 26.64 GB free of 221.50 GB | `statvfs` |
+
+**`SM8850` is a Qualcomm part number and `ro.hardware.egl` reports `adreno`.
+Snapdragon and Adreno are confirmed, so Turnip applies and Phase 2 is viable.**
+The `soc_prior` inference from the `U` suffix held.
+
+### Not measured — the Vulkan section was contaminated
+
+The first run reported `deviceName = llvmpipe (LLVM 21.1.8, 128 bits)`, which
+is **Mesa's software rasterizer running on the CPU**, not the Adreno driver.
+Termux's Vulkan loader picked up its own Mesa build instead of the vendor ICD.
+
+Everything in that section described the CPU. In particular
+`astc_ldr=False, etc2=False` is llvmpipe's answer and says nothing about this
+device — taken at face value it would have condemned the entire asset pipeline
+strategy for no reason.
+
+`device.py` now detects software rasterizers and refuses to present their
+capabilities as measurements. Still open:
+
+- Vulkan API version on the actual Adreno driver
+- Texture format support — ASTC block sizes, ETC2, and whether desktop BC is
+  present at all
+- The Adreno model number
+
+Termux is the wrong tool for this. It needs a native Android app holding a real
+Vulkan device — a GPU/Vulkan capability viewer from the Play Store will report
+the full feature set, including the texture format table.
+
+Expected, pending that measurement: ETC2 present (Vulkan on Android requires
+it), ASTC LDR present (universal on Adreno for many generations), desktop BC
+absent. If BC is indeed absent, transcoding is confirmed as a hard requirement
+rather than an optimization — which is what `budget.py` already assumes.
+
+## Two constraints the probe surfaced
+
+### Memory is tighter than the headline
+
+10.83 GB total, and 3.09 GB actually available with normal apps resident.
+Android will evict background apps for a foreground game, so the real figure
+under load is higher — but it is not 10 GB. A streaming budget in the 3–5 GB
+range is the realistic planning assumption for Phase 4, and
+`dalvik.vm.heapgrowthlimit` caps the managed heap separately from native
+allocations.
+
+### On-device conversion needs ~50 GB, not ~10
+
+The original budget check compared free space against the *converted output*
+only. That was wrong: converting requires the 41 GB source install present
+alongside its output, so the peak is the sum.
+
+| | Output alone | During conversion |
+|---|---|---|
+| aggressive | 6.7 GB | 47.7 GB |
+| balanced | 9.5 GB | 50.5 GB |
+| quality | 20.9 GB | 61.9 GB |
+
+Against 26.64 GB free, the output fits comfortably and the conversion does not.
+`device.py` now reports both.
+
+Freeing space solves it. So does a cheaper option worth considering first:
+**incremental conversion** — process one archive at a time and release each
+source as its output lands, which keeps the peak near `output + largest single
+archive` instead of `output + entire install`. That is a Phase 3 design
+decision, recorded here so it is made deliberately.
