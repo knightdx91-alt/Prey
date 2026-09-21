@@ -119,6 +119,55 @@ broke.
 > fastest, best maintained, or even still alive is **not** verifiable from this
 > session and changes on a scale of months.
 
+## Getting the game into a container
+
+### The concept
+
+Winlator runs **containers** — each one a Wine prefix, i.e. a self-contained
+virtual Windows install with its own `C:` drive. That `C:` lives in the app's
+private storage.
+
+**Do not copy the game into `C:`.** At ~41 GB that bloats app storage, is
+awkward to manage, and has to be redone for every container you try. Instead,
+leave the game where it is on shared storage and **map a drive letter to its
+folder**. Wine then sees it as `D:` (or whatever letter) and runs it in place.
+
+This is the part that is stable across forks and versions. Menu names below may
+differ — the mechanism will not.
+
+### Steps
+
+1. **Put the game on shared storage, extracted.** Somewhere like
+   `/storage/emulated/0/Games/Prey/`. If it arrived compressed, extract it
+   first — Wine needs the real directory tree, with `Prey.exe` and the data
+   folders beside it. Confirm the `.exe` is actually present before continuing.
+
+2. **Create a container.** Containers tab → `+`. Settings worth setting now:
+
+   | Setting | Value |
+   |---|---|
+   | Graphics driver | the Turnip / vendor-driver question — see above |
+   | DXVK | a recent version; Prey is D3D11 |
+   | Box64 preset | start at the default; tune later |
+   | Screen size | start low, e.g. 1280x720 |
+   | RAM / Windows version | defaults are usually fine |
+
+3. **Map a drive to the game folder.** In the container's settings there is a
+   **Drives** section. Add one pointing at the folder from step 1. It will
+   appear inside Wine as `D:\` or similar.
+
+4. **Launch it.** Start the container, and from the Wine desktop open the file
+   manager, navigate to the mapped drive, and run `Prey.exe`. Most builds also
+   let you save a shortcut to that executable so later launches skip the
+   browsing.
+
+### If it came as an installer
+
+If what you have is `setup.exe` rather than an installed game folder, run the
+installer *inside* a container first and let it install to the container's
+`C:`. Bear in mind the ~41 GB then lands in app private storage, so prefer an
+already-installed folder where possible.
+
 ## Prey-specific concerns
 
 - **D3D11 → DXVK.** The well-trodden path; better supported than D3D12 or
