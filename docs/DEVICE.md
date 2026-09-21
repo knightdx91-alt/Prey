@@ -138,8 +138,29 @@ capabilities as measurements. Still open:
 - The Adreno model number
 
 Termux is the wrong tool for this. It needs a native Android app holding a real
-Vulkan device — a GPU/Vulkan capability viewer from the Play Store will report
-the full feature set, including the texture format table.
+Vulkan device.
+
+**Use Vulkan Hardware Capability Viewer** (Sascha Willems) — open source, on the
+Play Store, with APKs on GitHub. It enumerates per-`VkFormat` support rather
+than just summarizing the GPU, which is exactly the table needed here. It also
+has an export/share function, so the report can travel as a file instead of
+screenshots.
+
+What to capture from it:
+
+| Tab | What matters |
+|---|---|
+| Device | `deviceName` (the Adreno model), `apiVersion`, `driverVersion` |
+| Features | `textureCompressionASTC_LDR`, `textureCompressionETC2`, `textureCompressionBC` |
+| Formats | Which `VK_FORMAT_ASTC_*` block sizes are supported, and whether any `VK_FORMAT_BC*` appears at all |
+
+The formats tab is the one that decides the texture pipeline. The ASTC block
+sizes available set the `budget.py` texture factor; today it assumes ASTC 6x6.
+
+> The public database at vulkan.gpuinfo.org may already hold a report for this
+> SoC, which would answer the same questions without installing anything. Its
+> results pages are JavaScript-rendered, so they could not be read from here —
+> worth a look in a browser, but the app is the path that definitely works.
 
 Expected, pending that measurement: ETC2 present (Vulkan on Android requires
 it), ASTC LDR present (universal on Adreno for many generations), desktop BC
