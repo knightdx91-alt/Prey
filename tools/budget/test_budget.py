@@ -203,3 +203,40 @@ class RenderTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PassthroughProfileTest(unittest.TestCase):
+    """The target GPU supports BC, so Prey's shipped textures can be sampled
+    without conversion. That makes a transcoder optional, and this profile is
+    what prices that choice."""
+
+    def test_texture_factor_is_pure_resolution(self):
+        """BC stays BC, so bits-per-pixel is unchanged; only pixel count drops.
+        Half each dimension = a quarter of the pixels = 0.25 exactly."""
+        self.assertEqual(budget.PROFILES["passthrough"]["factors"]["texture"], 0.25)
+
+    def test_costs_more_than_transcoding_but_still_reduces(self):
+        sizes = budget.sizes_from_total(41 * GB)
+        passthrough = budget.model(sizes, "passthrough")["total_after"]
+        balanced = budget.model(sizes, "balanced")["total_after"]
+        self.assertGreater(passthrough, balanced, "ASTC should beat BC on size")
+        self.assertLess(passthrough, 41 * GB, "but it must still be a reduction")
+
+    def test_lands_in_the_expected_range(self):
+        sizes = budget.sizes_from_total(41 * GB)
+        gb = budget.model(sizes, "passthrough")["total_after"] / GB
+        self.assertTrue(11 < gb < 14, f"expected ~12.6 GB, got {gb:.1f}")
+
+    def test_is_selectable_from_the_cli(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = budget.main(["--total-gb", "41", "--profile", "passthrough", "--json"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(json.loads(buf.getvalue())["results"][0]["profile"], "passthrough")
+
+    def test_included_in_all_profiles_comparison(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            budget.main(["--total-gb", "41", "--all-profiles", "--json"])
+        names = {r["profile"] for r in json.loads(buf.getvalue())["results"]}
+        self.assertIn("passthrough", names)

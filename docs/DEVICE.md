@@ -118,54 +118,48 @@ Run on 2026-09-21. The decisive question is answered.
 Snapdragon and Adreno are confirmed, so Turnip applies and Phase 2 is viable.**
 The `soc_prior` inference from the `U` suffix held.
 
-### Not measured — the Vulkan section was contaminated
+### GPU — measured
 
-The first run reported `deviceName = llvmpipe (LLVM 21.1.8, 128 bits)`, which
-is **Mesa's software rasterizer running on the CPU**, not the Adreno driver.
-Termux's Vulkan loader picked up its own Mesa build instead of the vendor ICD.
+The first Termux run reported `deviceName = llvmpipe`, Mesa's **software
+rasterizer on the CPU**, because Termux's loader picked up its own Mesa build
+instead of the vendor ICD. Its texture-format answers described the CPU and
+were meaningless here. `device.py` now detects software rasterizers and refuses
+to present their capabilities as measurements.
 
-Everything in that section described the CPU. In particular
-`astc_ldr=False, etc2=False` is llvmpipe's answer and says nothing about this
-device — taken at face value it would have condemned the entire asset pipeline
-strategy for no reason.
+The real figures come from report **51937** on vulkan.gpuinfo.org:
 
-`device.py` now detects software rasterizers and refuses to present their
-capabilities as measurements. Still open:
-
-- Vulkan API version on the actual Adreno driver
-- Texture format support — ASTC block sizes, ETC2, and whether desktop BC is
-  present at all
-- The Adreno model number
-
-Termux is the wrong tool for this. It needs a native Android app holding a real
-Vulkan device.
-
-**Use Vulkan Hardware Capability Viewer** (Sascha Willems) — open source, on the
-Play Store, with APKs on GitHub. It enumerates per-`VkFormat` support rather
-than just summarizing the GPU, which is exactly the table needed here. It also
-has an export/share function, so the report can travel as a file instead of
-screenshots.
-
-What to capture from it:
-
-| Tab | What matters |
+| Property | Value |
 |---|---|
-| Device | `deviceName` (the Adreno model), `apiVersion`, `driverVersion` |
-| Features | `textureCompressionASTC_LDR`, `textureCompressionETC2`, `textureCompressionBC` |
-| Formats | Which `VK_FORMAT_ASTC_*` block sizes are supported, and whether any `VK_FORMAT_BC*` appears at all |
+| `deviceName` | **Adreno (TM) 840** |
+| `driverName` | Qualcomm Technologies Inc. Adreno Vulkan Driver |
+| `driverVersion` | 512.842.19 |
+| `apiVersion` | **1.4.295** |
+| `deviceType` | `INTEGRATED_GPU` |
+| `vendorID` / `deviceID` | `0x5143` / `0x44050A31` |
 
-The formats tab is the one that decides the texture pipeline. The ASTC block
-sizes available set the `budget.py` texture factor; today it assumes ASTC 6x6.
+### Texture compression — all four families supported
 
-> The public database at vulkan.gpuinfo.org may already hold a report for this
-> SoC, which would answer the same questions without installing anything. Its
-> results pages are JavaScript-rendered, so they could not be read from here —
-> worth a look in a browser, but the app is the path that definitely works.
+| Feature | Value |
+|---|---|
+| `textureCompressionASTC_LDR` | **true** |
+| `textureCompressionASTC_HDR` | **true** |
+| `textureCompressionBC` | **true** |
+| `textureCompressionETC2` | **true** |
 
-Expected, pending that measurement: ETC2 present (Vulkan on Android requires
-it), ASTC LDR present (universal on Adreno for many generations), desktop BC
-absent. If BC is indeed absent, transcoding is confirmed as a hard requirement
-rather than an optimization — which is what `budget.py` already assumes.
+Confirmed against the per-format table, not just the feature bits: `BC1_RGB`,
+`BC3`, `BC5`, `BC7_UNORM`, `BC7_SRGB`, `ASTC_4x4`, `ASTC_6x6`, `ASTC_8x8` and
+`ETC2_R8G8B8` all report optimal-tiling support with `SAMPLED_IMAGE`.
+
+**`textureCompressionBC = true` contradicts what this document previously
+expected.** Desktop BC support is not typical on mobile GPUs, and the earlier
+prediction was that transcoding would be a hard requirement. It is not.
+
+The consequence is a genuine de-risking of Phase 3: Prey's shipped BC1/BC3/BC5/
+BC7 textures can be sampled by this GPU directly, so a working build needs no
+transcoder at all. Dropping mip levels alone produces a usable, shippable
+result. Transcoding to ASTC stays worthwhile for size — ASTC 6x6 is 3.56 bpp
+against BC7's 8 — but it is now an optimization to schedule, not a blocker to
+clear. `budget.py` prices both via the `passthrough` profile.
 
 ## Two constraints the probe surfaced
 

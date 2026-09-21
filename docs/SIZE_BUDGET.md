@@ -42,11 +42,19 @@ python3 tools/budget/budget.py --report prey-report.json   # real category mix
 
 Using assumed AAA proportions, since no probe report exists yet:
 
-| Profile | Result | Reduction |
-|---|---|---|
-| `quality` | ~20.9 GB | 2.0x |
-| `balanced` | ~9.5 GB | 4.3x |
-| `aggressive` | ~6.7 GB | 6.1x |
+| Profile | Result | Reduction | Transcoder |
+|---|---|---|---|
+| `quality` | ~20.9 GB | 2.0x | yes |
+| `passthrough` | ~12.6 GB | 3.2x | **no** |
+| `balanced` | ~9.5 GB | 4.3x | yes |
+| `aggressive` | ~6.7 GB | 6.1x | yes |
+
+`passthrough` exists because the target GPU turned out to support desktop BC
+(measured — Adreno 840, see `DEVICE.md`). Prey's shipped textures can be
+sampled directly, so that profile only drops resolution: bits-per-pixel is
+unchanged, pixel count quarters, factor 0.25 exactly. It costs about 3 GB
+against `balanced` and needs no transcoder, which makes it the fastest route
+to something that runs.
 
 The texture math is the load-bearing part. Desktop BC7 is 8 bits per pixel;
 ASTC 6x6 is 3.56, and halving each dimension quarters the pixel count. That is

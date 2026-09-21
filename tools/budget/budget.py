@@ -51,7 +51,27 @@ ASSUMED_SPLIT: dict[str, float] = {
 
 # Reduction factors per category. Reasoning is recorded alongside each, because
 # a number without its derivation cannot be argued with or corrected.
+#
+# The target GPU (Adreno 840) supports BC, ASTC and ETC2 -- measured, see
+# docs/DEVICE.md. That makes BC->ASTC transcoding an optimization rather than a
+# requirement, which is what the "passthrough" profile exists to price.
 PROFILES: dict[str, dict[str, Any]] = {
+    "passthrough": {
+        "description": "Keep desktop BC textures as-is; only drop resolution. "
+                       "No transcoder needed -- the fastest route to a build.",
+        "factors": {
+            # MEASURED on Adreno 840: textureCompressionBC is supported, so
+            # Prey's shipped BC1/BC3/BC5/BC7 textures can be sampled directly.
+            # Halving each dimension quarters the pixel count; bits-per-pixel
+            # is unchanged because the format is unchanged.
+            "texture": 0.25,
+            "audio": 0.18,
+            "video": 0.20,
+            "geometry": 0.60,
+            "script": 1.0,
+            "other": 0.90,
+        },
+    },
     "quality": {
         "description": "Keep visual fidelity high; accept a large install.",
         "factors": {

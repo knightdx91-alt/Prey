@@ -49,9 +49,9 @@ textures, and materials in a form a renderer could consume.
 SoC `SM8850` with `ro.hardware.egl = adreno`, so Snapdragon and Adreno, so
 Turnip applies. See `docs/DEVICE.md`.
 
-- [x] Confirm the GPU family — Adreno, measured
-- [ ] Vulkan version and texture format support — the Termux probe returned
-      llvmpipe (software), so this needs a native Android Vulkan capability app
+- [x] Confirm the GPU family — **Adreno 840**, measured
+- [x] Vulkan version — **1.4.295**, Qualcomm driver 512.842.19
+- [x] Texture format support — **BC, ASTC LDR+HDR and ETC2 all supported**
 - [ ] Box64/FEX + Wine + DXVK + Turnip bring-up (Adreno path)
 - [ ] Get to a main menu; record everything that breaks getting there
 - [ ] Capture reference frames for the native renderer to diff against
@@ -75,7 +75,9 @@ answer and mesh data does not.
 - [ ] Mesh optimization and vertex stream repacking **(largest category after
       reduction; start here, against instinct)**
 - [ ] LOD policy — decide what a phone actually needs
-- [ ] BC → ASTC transcoding, with measured ratios replacing the estimates
+- [ ] **Optional now:** BC → ASTC transcoding. The GPU samples BC directly, so
+      a first build needs only mip dropping. Schedule this for size, not to
+      unblock anything
 - [ ] Locale policy; audio re-encoding
 - [ ] Video re-encode or cut
 - [ ] Android asset packaging; confirm current Play delivery limits, which
