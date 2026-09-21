@@ -47,7 +47,8 @@ textures, and materials in a form a renderer could consume.
 
 **Do the cheap experiment first.** Install a Winlator-class environment and try
 to launch Prey. That one test bounds the whole project's ceiling and produces a
-work list of whatever fails. See `FEASIBILITY.md`.
+work list of whatever fails. See `FEASIBILITY.md`, and `PHASE2_SETUP.md` for
+which build to try and why the graphics driver matters more than the wrapper.
 
 
 **Viable — confirmed.** Reference device is a Galaxy Z Fold 8, `SM-F971U`:
@@ -57,7 +58,9 @@ Turnip applies. See `docs/DEVICE.md`.
 - [x] Confirm the GPU family — **Adreno 840**, measured
 - [x] Vulkan version — **1.4.295**, Qualcomm driver 512.842.19
 - [x] Texture format support — **BC, ASTC LDR+HDR and ETC2 all supported**
-- [ ] Box64/FEX + Wine + DXVK + Turnip bring-up (Adreno path)
+- [ ] Establish whether current Turnip supports Adreno 840 — the gating
+      unknown, since driver maturity for new silicon lags the hardware
+- [ ] Box64/FEX + Wine + DXVK bring-up (Adreno path)
 - [ ] Get to a main menu; record everything that breaks getting there
 - [ ] Capture reference frames for the native renderer to diff against
 - [ ] Profile honestly and publish the numbers, however bad they are —

@@ -1,0 +1,94 @@
+# Phase 2 — picking a translation layer
+
+> **Staleness warning.** The Winlator ecosystem moves fast: forks appear,
+> overtake the mainline, and get abandoned within months. The specific names
+> below are from training data with a mid-2026 cutoff and could not be verified
+> from this session — GitHub is scope-blocked here. **Check current community
+> sources before trusting any name in this file.** The technical reasoning
+> further down does not go stale; the project names might.
+
+## The variable that actually matters
+
+It is not which Winlator fork. It is **the GPU driver**.
+
+These apps are all roughly the same stack — Box64 or FEX for the ISA, Wine for
+Win32, DXVK for D3D11→Vulkan — wrapped differently. What separates a playable
+result from a slideshow is the Vulkan driver underneath, and on Adreno that
+means Mesa's **Turnip**.
+
+Here is the specific risk for this device: **Adreno 840 is new.** Turnip
+support for a freshly released Adreno generation typically lags the hardware,
+sometimes by months. If Turnip does not yet handle Adreno 840 well, no choice
+of wrapper fixes it.
+
+So the first question to answer is not "which app" but:
+
+> Does current Turnip support Adreno 840, and how well?
+
+Most Winlator-class apps let you select or import a graphics driver. Expect to
+try several:
+
+1. **Turnip**, newest build available — the preferred path when it works
+2. **An older Turnip** — newer is not always better on new silicon
+3. **The vendor Adreno driver** (Qualcomm 512.842.19, already measured) via
+   whatever passthrough the app offers — sometimes the only thing that works on
+   brand-new parts, sometimes faster, sometimes broken with DXVK
+
+Measured, from `docs/DEVICE.md`: Vulkan 1.4.295, Qualcomm driver 512.842.19,
+Adreno 840. That is a modern Vulkan level, so the hardware is not the
+constraint — driver maturity is.
+
+## Builds to try, in order
+
+Named with the staleness warning above firmly in mind.
+
+1. **Winlator (mainline, brunodev85)** — the reference implementation. Best
+   documented, largest community, most troubleshooting material. Start here
+   because when something breaks, this is the one people can help with.
+2. **Winlator Cmod (coffincolors)** — a fork frequently reported as faster,
+   with more aggressive Box64 tuning and quicker releases. The usual second
+   stop when mainline performance disappoints.
+3. **Bionic-based builds** — variants linking Android's own libc instead of
+   bundling glibc. Generally lower overhead. Naming here changes often.
+4. **Mobox**, **GameHub / GameNative**, and other alternatives — different
+   wrappers over a similar stack. Worth trying if the above stall.
+
+Do not over-invest in choosing. Install one, get a result, and let the failure
+mode tell you whether to switch.
+
+## Prey-specific concerns
+
+- **D3D11 → DXVK.** The well-trodden path; better supported than D3D12 or
+  older D3D9 titles.
+- **CryEngine's deferred renderer is bandwidth-hungry.** Mobile memory
+  bandwidth is far below desktop. Expect resolution to matter more than any
+  other setting — drop it first and hardest.
+- **RAM is the tight one.** `DEVICE.md` measured 10.83 GB total with ~3 GB free
+  at rest. Wine, DXVK and Prey together against that is the constraint most
+  likely to bite. Close everything before launching.
+- **Thermals.** A foldable throttles sooner than a slab. Whatever the first
+  minute shows, the tenth minute is the real number.
+- **Storefront wrapper.** Retail builds carry a storefront DRM layer that has
+  to initialize under Wine. This is a common early failure point and usually
+  the first thing to diagnose if it will not launch.
+
+## What to report back
+
+Whatever happens, these are the useful facts:
+
+1. Which app and version, and which graphics driver was selected
+2. Does it reach the main menu? If not, where does it fail?
+3. If it runs: frame rate at the lowest settings and resolution, taken after
+   ~10 minutes rather than immediately
+4. What fails first — a crash, a missing shader, audio, input
+
+Failures are the deliverable here. A list of what broke is a work plan; a
+working build is a bonus.
+
+## Why this is the right next step
+
+It is cheap — an evening — and it bounds the whole project. See
+`FEASIBILITY.md`: Phase 4 is out of scope, so the translation layer is the
+primary path rather than a reference oracle. What it does tells you where the
+asset pipeline should aim, and what it cannot do tells you that now rather than
+after months of tooling.
