@@ -262,6 +262,18 @@ def survey_archive(
         exts = collections.Counter(e.ext for e in files)
         record["extensions"] = dict(exts.most_common())
 
+        # Which tool wrote this archive, and when. Retail archives are written
+        # once by the publisher's packer; an archive rebuilt by other tooling
+        # carries that tooling's signature instead. This is a data-integrity
+        # question, not a licensing one -- it decides whether an observed
+        # layout is the developer's or a repacker's.
+        writers = collections.Counter(e.writer_signature for e in files)
+        record["writers"] = dict(writers.most_common())
+        stamps = sorted(m for m in (e.mtime for e in files) if m)
+        if stamps:
+            record["mtime_min"] = stamps[0]
+            record["mtime_max"] = stamps[-1]
+
         # Sample a few headers per extension. This is where format evidence
         # comes from, and it is why the report is worth more than a listing.
         # Results go to the install-wide registry, which collapses duplicates.
@@ -346,6 +358,75 @@ def aggregate(archives: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def assess_provenance(archives: list[dict[str, Any]]) -> dict[str, Any]:
+    """Judge whether the archives look like one original packing.
+
+    This asks a narrow technical question: were these archives written once by
+    a single tool, or rebuilt by something else? It matters because format
+    archaeology reads an archive's layout as evidence about the developer's
+    pipeline. If a repacker recompressed everything, the compression methods
+    and entry ordering are the repacker's, and promoting them to VERIFIED in
+    ASSET_FORMATS.md would record the wrong thing.
+
+    It is not a judgment about how a copy was obtained, and it does not try to
+    be -- a legitimately owned copy may well be a repack, and a bit-exact copy
+    of retail media is bit-exact however it arrived.
+    """
+    writers: collections.Counter[str] = collections.Counter()
+    years: collections.Counter[str] = collections.Counter()
+    spans = []
+
+    for archive in archives:
+        if not archive.get("readable_as_zip"):
+            continue
+        writers.update(archive.get("writers", {}))
+        lo, hi = archive.get("mtime_min"), archive.get("mtime_max")
+        if lo and hi:
+            spans.append((lo, hi))
+            years[lo[:4]] += 1
+
+    result: dict[str, Any] = {
+        "writers": dict(writers.most_common()),
+        "distinct_writers": len(writers),
+        "entry_years": dict(sorted(years.items())),
+    }
+    if spans:
+        result["mtime_min"] = min(lo for lo, _ in spans)
+        result["mtime_max"] = max(hi for _, hi in spans)
+
+    notes: list[str] = []
+    if len(writers) > 1:
+        notes.append(
+            f"{len(writers)} distinct ZIP writer signatures across the install; "
+            "a single original packing would normally show one"
+        )
+    if len(years) > 1:
+        notes.append(
+            f"entry timestamps span {len(years)} years ({', '.join(sorted(years))}); "
+            "check whether some archives were rewritten later"
+        )
+
+    if not writers:
+        result["verdict"] = "unknown"
+        result["note"] = "no readable archives to assess"
+    elif notes:
+        result["verdict"] = "mixed"
+        result["note"] = (
+            "Archives were not all written by the same tool. Layout details "
+            "(compression methods, entry order) may reflect repacking rather "
+            "than the original pipeline, so treat them as weak evidence for "
+            "ASSET_FORMATS.md. File *contents* are unaffected."
+        )
+        result["signals"] = notes
+    else:
+        result["verdict"] = "consistent"
+        result["note"] = (
+            "One writer signature across the install, consistent with a single "
+            "original packing. Layout details are usable as evidence."
+        )
+    return result
+
+
 def write_listing(archives_on_disk: list[str], root: str, dest: str) -> int:
     """Write every entry name across all archives, gzipped. Opt-in: it is large."""
     written = 0
@@ -406,6 +487,17 @@ def digest(report: dict[str, Any], top_ext: int = 30, top_sig: int = 60) -> str:
     add(f"EXT (top {top_ext} of {len(totals['extensions'])})")
     for ext, count in list(totals["extensions"].items())[:top_ext]:
         add(f"  {count:>8} {ext}")
+
+    prov = report.get("provenance", {})
+    if prov:
+        add("")
+        add(f"PROVENANCE verdict={prov.get('verdict', '?')}")
+        for writer, count in prov.get("writers", {}).items():
+            add(f"  {count:>8} writer={writer}")
+        if prov.get("mtime_min"):
+            add(f"  entry timestamps {prov['mtime_min']} .. {prov['mtime_max']}")
+        for signal in prov.get("signals", []):
+            add(f"  ! {signal}")
 
     signatures = report.get("signatures", [])
     shown = signatures[:top_sig]
@@ -498,6 +590,13 @@ def print_summary(report: dict[str, Any]) -> None:
         print(f"\n{unknown} distinct header signature(s) not recognized"
               "  <-- candidates for format work")
 
+    prov = report.get("provenance", {})
+    if prov.get("verdict"):
+        print(f"\nprovenance   {prov['verdict']}  "
+              f"({prov.get('distinct_writers', 0)} writer signature(s))")
+        for signal in prov.get("signals", []):
+            print(f"  ! {signal}")
+
     print(f"\ndistinct signatures   {len(report.get('signatures', []))}")
     print(f"distinct chunk types  {len(report.get('chunk_variants', []))}")
     for variant in report.get("chunk_variants", []):
@@ -554,6 +653,7 @@ def main(argv: list[str] | None = None) -> int:
         "binaries": survey_binaries(root),
         "archives": archives,
         "totals": aggregate(archives),
+        "provenance": assess_provenance(archives),
         **registry.as_report(),
     }
 

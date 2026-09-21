@@ -15,6 +15,30 @@ Every claim carries a confidence marker:
 Nothing here is VERIFIED yet. This is a map of where to dig, written before the
 digging. Promote entries as evidence arrives, and say what the evidence was.
 
+### One caveat on promoting a claim
+
+Two kinds of fact live in this document, and they do not carry equal weight:
+
+- **Content facts** — a `.cgf` chunk header layout, a DDS pixel format, whether
+  Lua is bytecode. These come from the bytes of individual files and are
+  unaffected by how the install was assembled.
+- **Layout facts** — which compression methods CryPak uses, entry ordering,
+  archive structure. These describe how the *archive* was built, so they are
+  only evidence about the developer's pipeline if the archive is the one the
+  developer shipped.
+
+An install whose archives were rebuilt by other tooling still yields perfectly
+good content facts, but its layout facts belong to whatever rebuilt it.
+
+`probe` checks this and reports a provenance verdict, by reading the ZIP
+"version made by" field and entry timestamps — a `consistent` verdict means one
+writer signature across the install; `mixed` means more than one. When the
+verdict is `mixed`, treat layout claims as weak and content claims as normal.
+
+This is a data-integrity question and nothing more. It says nothing about where
+a copy came from — a repack is a repack however it was obtained, and a bit-exact
+copy of retail media is bit-exact however it arrived.
+
 ## Archives — `.pak`
 
 **UNVERIFIED.** CryPak archives are ZIP containers. CryEngine writes a custom

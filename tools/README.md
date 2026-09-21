@@ -37,6 +37,9 @@ It reads the install read-only and records:
 - `.cgf`/`.chr` chunk header layout and version numbers
 - the audio middleware, inferred from the CryEngine ATL implementation DLL
 - Lua source-versus-bytecode counts
+- a provenance verdict — whether every archive carries the same ZIP writer
+  signature, which decides whether archive-layout observations are evidence
+  about the original pipeline or about whatever rebuilt it
 
 **What it does not do:** copy asset content, or record absolute paths. Samples
 are capped at 64 bytes — enough for a magic number and a version field, far too

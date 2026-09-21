@@ -364,3 +364,91 @@ class DigestTest(unittest.TestCase):
                 probe.main([root, "-o", out, "--digest", dig])
             with open(dig, encoding="utf-8") as fh:
                 self.assertIn("PREY PROBE DIGEST", fh.read())
+
+
+class ProvenanceTest(unittest.TestCase):
+    """Were these archives written once by one tool, or rebuilt by another?
+
+    This is a data-integrity question, not a licensing one. Format archaeology
+    reads archive layout as evidence about the developer's pipeline; if a
+    repacker recompressed everything, that layout is the repacker's, and
+    promoting it to VERIFIED would record the wrong thing.
+    """
+
+    def _archive(self, writers: dict, lo: str = None, hi: str = None) -> dict:
+        record = {"readable_as_zip": True, "writers": writers}
+        if lo:
+            record["mtime_min"], record["mtime_max"] = lo, hi or lo
+        return record
+
+    def test_single_writer_is_consistent(self):
+        result = probe.assess_provenance([
+            self._archive({"fat/6.3": 100}, "2017-05-05T09:00:00"),
+            self._archive({"fat/6.3": 50}, "2017-05-06T09:00:00"),
+        ])
+        self.assertEqual(result["verdict"], "consistent")
+        self.assertEqual(result["distinct_writers"], 1)
+        self.assertNotIn("signals", result)
+
+    def test_mixed_writers_are_flagged(self):
+        result = probe.assess_provenance([
+            self._archive({"fat/6.3": 100}, "2017-05-05T09:00:00"),
+            self._archive({"unix/2.0": 50}, "2017-05-05T09:00:00"),
+        ])
+        self.assertEqual(result["verdict"], "mixed")
+        self.assertEqual(result["distinct_writers"], 2)
+        self.assertTrue(any("writer signatures" in s for s in result["signals"]))
+
+    def test_timestamp_span_is_flagged(self):
+        result = probe.assess_provenance([
+            self._archive({"fat/6.3": 10}, "2017-05-05T09:00:00"),
+            self._archive({"fat/6.3": 10}, "2024-03-14T10:00:00"),
+        ])
+        self.assertEqual(result["verdict"], "mixed")
+        self.assertTrue(any("timestamps span" in s for s in result["signals"]))
+
+    def test_no_readable_archives_is_unknown_not_a_verdict(self):
+        result = probe.assess_provenance([{"readable_as_zip": False}])
+        self.assertEqual(result["verdict"], "unknown")
+
+    def test_note_scopes_the_finding_to_layout_not_contents(self):
+        """A repack changes how files are stored, not the files themselves."""
+        result = probe.assess_provenance([
+            self._archive({"fat/6.3": 1}), self._archive({"unix/2.0": 1}),
+        ])
+        self.assertIn("contents", result["note"].lower())
+
+    def test_unreadable_archives_are_excluded_from_writers(self):
+        result = probe.assess_provenance([
+            {"readable_as_zip": False},
+            self._archive({"fat/6.3": 5}, "2017-05-05T09:00:00"),
+        ])
+        self.assertEqual(result["verdict"], "consistent")
+        self.assertEqual(result["writers"], {"fat/6.3": 5})
+
+    def test_end_to_end_detects_a_rebuilt_archive(self):
+        """The case that matters: one archive rewritten by other tooling."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "Prey")
+            os.makedirs(root)
+            for name, (system, version, when) in {
+                "a.pak": (3, 20, (2017, 5, 5, 9, 0, 0)),
+                "b.pak": (0, 63, (2024, 3, 14, 10, 0, 0)),   # rebuilt
+            }.items():
+                with zipfile.ZipFile(os.path.join(root, name), "w") as z:
+                    info = zipfile.ZipInfo("Objects/m.cgf", date_time=when)
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    info.create_system, info.create_version = system, version
+                    z.writestr(info, CGF_LEGACY)
+
+            out = os.path.join(tmp, "r.json")
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                probe.main([root, "-o", out])
+            with open(out, encoding="utf-8") as fh:
+                report = json.load(fh)
+
+        prov = report["provenance"]
+        self.assertEqual(prov["verdict"], "mixed")
+        self.assertEqual(prov["distinct_writers"], 2)
+        self.assertIn("PROVENANCE verdict=mixed", probe.digest(report))

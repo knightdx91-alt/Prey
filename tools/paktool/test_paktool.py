@@ -205,3 +205,72 @@ class PakToolTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WriterSignatureTest(unittest.TestCase):
+    """The central directory records which tool wrote each entry. That is the
+    evidence for whether an archive's layout is original or rebuilt."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.tmp.name, "w.pak")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _write(self, create_system: int, create_version: int, when=(2017, 5, 5, 9, 0, 0)):
+        with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as z:
+            info = zipfile.ZipInfo("Objects/m.cgf", date_time=when)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = create_system
+            info.create_version = create_version
+            z.writestr(info, b"CryTek\x00\x00" + b"\xAA" * 512)
+
+    def test_decodes_host_system_and_version(self):
+        self._write(create_system=0, create_version=63)
+        with paktool.Pak(self.path) as pak:
+            entry = pak.entries[0]
+        self.assertEqual(entry.host_system, "fat")
+        self.assertEqual(entry.zip_version, "6.3")
+        self.assertEqual(entry.writer_signature, "fat/6.3")
+
+    def test_unix_writer_is_distinct(self):
+        self._write(create_system=3, create_version=20)
+        with paktool.Pak(self.path) as pak:
+            self.assertEqual(pak.entries[0].writer_signature, "unix/2.0")
+
+    def test_different_writers_are_distinguishable(self):
+        """Same content, different packer -> different signature. This is the
+        whole basis of the provenance check."""
+        self._write(create_system=0, create_version=63)
+        with paktool.Pak(self.path) as pak:
+            first = pak.entries[0].writer_signature
+        self._write(create_system=3, create_version=20)
+        with paktool.Pak(self.path) as pak:
+            second = pak.entries[0].writer_signature
+        self.assertNotEqual(first, second)
+
+    def test_unknown_host_is_reported_not_guessed(self):
+        self._write(create_system=99, create_version=20)
+        with paktool.Pak(self.path) as pak:
+            self.assertIn("unknown(99)", pak.entries[0].host_system)
+
+    def test_decodes_entry_timestamp(self):
+        self._write(create_system=0, create_version=20, when=(2017, 5, 5, 9, 30, 0))
+        with paktool.Pak(self.path) as pak:
+            self.assertEqual(pak.entries[0].mtime, "2017-05-05T09:30:00")
+
+    def test_missing_timestamp_returns_none(self):
+        entry = paktool.Entry("x", 0, 0, 0, 0, 0, 0, dos_date=0, dos_time=0)
+        self.assertIsNone(entry.mtime)
+
+    def test_nonsense_date_returns_none(self):
+        entry = paktool.Entry("x", 0, 0, 0, 0, 0, 0, dos_date=0xFFFF, dos_time=0)
+        self.assertIsNone(entry.mtime)
+
+    def test_reading_entries_still_works(self):
+        """Capturing the new fields must not disturb extraction."""
+        payload = b"CryTek\x00\x00" + b"\xAA" * 512
+        self._write(create_system=0, create_version=63)
+        with paktool.Pak(self.path) as pak:
+            self.assertEqual(pak.read(pak.entries[0]), payload)

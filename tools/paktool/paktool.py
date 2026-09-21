@@ -62,6 +62,15 @@ class PakError(Exception):
     """The archive could not be parsed at all."""
 
 
+# Upper byte of "version made by" is the host system of the writing tool.
+# Different ZIP writers leave different values, which is what makes this a
+# usable fingerprint for "was this archive rebuilt by something else?".
+HOST_SYSTEMS = {
+    0: "fat", 1: "amiga", 3: "unix", 7: "macintosh", 10: "ntfs",
+    11: "mvs", 14: "vfat", 19: "osx",
+}
+
+
 @dataclass
 class Entry:
     name: str
@@ -71,6 +80,41 @@ class Entry:
     comp_size: int
     uncomp_size: int
     local_offset: int
+    version_made_by: int = 0
+    dos_time: int = 0
+    dos_date: int = 0
+
+    @property
+    def host_system(self) -> str:
+        code = self.version_made_by >> 8
+        return HOST_SYSTEMS.get(code, f"unknown({code})")
+
+    @property
+    def zip_version(self) -> str:
+        return f"{(self.version_made_by & 0xFF) / 10:.1f}"
+
+    @property
+    def writer_signature(self) -> str:
+        """Host system plus ZIP spec version -- a coarse fingerprint of the
+        tool that wrote this entry. Retail archives are written once by the
+        publisher's packer, so a mix of signatures in one install is a strong
+        hint that something repacked it."""
+        return f"{self.host_system}/{self.zip_version}"
+
+    @property
+    def mtime(self) -> str | None:
+        """Entry timestamp, decoded from the DOS date/time fields."""
+        if not self.dos_date:
+            return None
+        year = ((self.dos_date >> 9) & 0x7F) + 1980
+        month = (self.dos_date >> 5) & 0x0F
+        day = self.dos_date & 0x1F
+        hour = (self.dos_time >> 11) & 0x1F
+        minute = (self.dos_time >> 5) & 0x3F
+        second = (self.dos_time & 0x1F) * 2
+        if not (1 <= month <= 12 and 1 <= day <= 31):
+            return None
+        return f"{year:04d}-{month:02d}-{day:02d}T{hour:02d}:{minute:02d}:{second:02d}"
 
     @property
     def method_name(self) -> str:
@@ -150,8 +194,12 @@ def _parse_central_directory(blob: bytes, delta: int) -> Iterator[Entry]:
         if blob[pos : pos + 4] != SIG_CENTRAL:
             break
         (
+            version_made_by,
+            _version_needed,
             flags,
             method,
+            dos_time,
+            dos_date,
             crc32,
             comp_size,
             uncomp_size,
@@ -159,7 +207,7 @@ def _parse_central_directory(blob: bytes, delta: int) -> Iterator[Entry]:
             extra_len,
             comment_len,
             local_offset,
-        ) = struct.unpack_from("<xxxxxxxxHHxxxxIIIHHHxxxxxxxxI", blob, pos)
+        ) = struct.unpack_from("<xxxxHHHHHHIIIHHHxxxxxxxxI", blob, pos)
 
         name_at = pos + CENTRAL_FIXED
         raw_name = blob[name_at : name_at + name_len]
@@ -182,6 +230,9 @@ def _parse_central_directory(blob: bytes, delta: int) -> Iterator[Entry]:
             comp_size=comp_size,
             uncomp_size=uncomp_size,
             local_offset=local_offset + delta,
+            version_made_by=version_made_by,
+            dos_time=dos_time,
+            dos_date=dos_date,
         )
         pos = name_at + name_len + extra_len + comment_len
 

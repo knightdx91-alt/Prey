@@ -97,6 +97,9 @@ The digest settles, in one paste:
 - the audio middleware, from the ATL implementation DLL
 - Lua as source or bytecode
 - every header signature nothing recognized, as a work queue
+- a provenance verdict: whether the archives were all written by one tool, which
+  decides how much weight archive-layout claims can carry (see
+  `ASSET_FORMATS.md`). Content facts are unaffected either way.
 
 That is most of `ASSET_FORMATS.md` promoted from UNVERIFIED in a single step,
 and it also feeds `budget.py --report` so the size model stops using assumed
