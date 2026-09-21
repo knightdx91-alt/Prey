@@ -59,13 +59,13 @@ python3 tools/device/device.py --digest
 ## Requirements
 
 - Python 3.9+ for the tooling in `tools/`
-- Your own legally acquired copy of Prey. **No game data is distributed here.**
+- Your own copy of Prey. **No game data is distributed here.**
 
 ## How the data works
 
-**The game files stay on your machine.** They are not in this repo and cannot
-be — a storefront login is required to download Prey, an agent has no business
-holding your credentials, and a 20+ GB install does not belong in Git.
+**The game files stay on your machine.** Not policy — mechanics. A ~41 GB
+install does not fit in the session container, would not survive it being
+reclaimed, and does not belong in Git.
 
 It turns out not to matter much. Nearly every open format question is
 answerable from *metadata* measured in kilobytes. So the loop is: you run a
@@ -114,9 +114,8 @@ Fixtures are generated at runtime; no game data is required to run them.
 
 `main` only. No branches. No pull requests. See [`CLAUDE.md`](CLAUDE.md).
 
-## Legal
+## Notice
 
-Reverse engineering here is done under permission held by the repository owner.
-Prey, Arkane, and Bethesda are trademarks of their respective owners; this
-project is unaffiliated with and unendorsed by either. No copyrighted game
-assets are redistributed.
+Prey, Arkane and Bethesda are trademarks of their respective owners. This
+project is unaffiliated with and unendorsed by either. No game assets are
+redistributed here — the tooling reads from your own install.

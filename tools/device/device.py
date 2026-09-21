@@ -62,6 +62,48 @@ GPU_NOTES: dict[str, str] = {
                "driver only; no mature open path.",
 }
 
+# Samsung region suffixes. These encode naming convention, not hardware specs:
+# the suffix says which regional variant a unit is, and US variants of Samsung
+# flagships have consistently shipped Qualcomm parts (hence Adreno) even in
+# generations where other regions got Exynos (hence Xclipse). Useful as a prior
+# when vulkaninfo is not installed; the probe still confirms from the driver.
+SAMSUNG_REGIONS = {
+    "U": ("US carrier/unlocked", "Snapdragon expected -> Adreno"),
+    "U1": ("US unlocked", "Snapdragon expected -> Adreno"),
+    "B": ("Europe / international", "varies by generation; confirm"),
+    "N": ("Korea", "varies by generation; confirm"),
+    "W": ("Canada", "varies by generation; confirm"),
+    "0": ("open market", "varies by generation; confirm"),
+}
+
+
+def decode_samsung_model(model: str) -> dict[str, Any] | None:
+    """Decode a Samsung model number into family and regional variant.
+
+    This reads a naming convention, not a spec sheet. It yields a prior about
+    the likely SoC vendor, which the Vulkan driver then confirms or overturns.
+    """
+    match = re.match(r"^SM-([A-Z])(\d{3})([A-Z]\d?|\d)?$", model.strip().upper())
+    if not match:
+        return None
+    series, number, suffix = match.group(1), match.group(2), match.group(3) or ""
+
+    families = {"F": "Galaxy Z (foldable)", "S": "Galaxy S", "G": "Galaxy S (older)",
+                "N": "Galaxy Note", "A": "Galaxy A", "T": "Galaxy Tab"}
+    info: dict[str, Any] = {
+        "model": model.strip().upper(),
+        "family": families.get(series, f"unknown series {series}"),
+        "number": number,
+    }
+    if series == "F" and number.startswith("9"):
+        info["family"] = "Galaxy Z Fold"
+    if suffix:
+        region, soc = SAMSUNG_REGIONS.get(suffix, ("unrecognized suffix", "confirm"))
+        info["region"] = region
+        info["soc_prior"] = soc
+    return info
+
+
 # OpenGL ES version property is an encoded integer: 0xMMMMmmmm.
 def decode_gles(value: str) -> str | None:
     try:
@@ -237,7 +279,11 @@ def collect() -> dict[str, Any]:
     vulkan = read_vulkan()
     gles = props.get("graphics", {}).get("ro.opengles.version")
 
+    model = props.get("identity", {}).get("ro.product.model", "")
+    decoded = decode_samsung_model(model) if model else None
+
     report: dict[str, Any] = {
+        "model_decoded": decoded,
         "is_android": bool(props) or "ANDROID_ROOT" in os.environ,
         "in_termux": "com.termux" in os.environ.get("PREFIX", ""),
         "python": platform.python_version(),
@@ -288,6 +334,13 @@ def digest(report: dict[str, Any]) -> str:
     mem = report["memory"]
     if mem.get("MemTotal"):
         add(f"ram={_size(mem['MemTotal'])} available={_size(mem.get('MemAvailable', 0))}")
+
+    decoded = report.get("model_decoded")
+    if decoded:
+        add(f"family={decoded.get('family', '?')} "
+            f"region={decoded.get('region', '?')}")
+        if decoded.get("soc_prior"):
+            add(f"soc_prior={decoded['soc_prior']}  (prior only; driver confirms)")
 
     add(f"gpu_family={report['gpu']['family']}")
     if report.get("opengl_es"):

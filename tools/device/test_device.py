@@ -239,3 +239,55 @@ class CliTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ModelDecodeTest(unittest.TestCase):
+    """Model numbers encode family and regional variant. That yields a prior
+    about the SoC vendor, which decides whether Phase 2 is worth starting."""
+
+    def test_decodes_the_reference_device(self):
+        info = device.decode_samsung_model("SM-F971U")
+        self.assertEqual(info["family"], "Galaxy Z Fold")
+        self.assertEqual(info["number"], "971")
+        self.assertIn("US", info["region"])
+        self.assertIn("Adreno", info["soc_prior"])
+
+    def test_us_suffix_implies_snapdragon(self):
+        for model in ("SM-F971U", "SM-S928U"):
+            self.assertIn("Snapdragon", device.decode_samsung_model(model)["soc_prior"])
+
+    def test_non_us_suffix_is_not_assumed(self):
+        """Other regions vary by generation, so the prior must stay open."""
+        info = device.decode_samsung_model("SM-F956B")
+        self.assertIn("confirm", info["soc_prior"])
+        self.assertNotIn("Snapdragon", info["soc_prior"])
+
+    def test_handles_lowercase_and_whitespace(self):
+        self.assertEqual(
+            device.decode_samsung_model("  sm-f971u  ")["model"], "SM-F971U"
+        )
+
+    def test_unrecognized_input_returns_none(self):
+        for bad in ("not-a-model", "", "Pixel 9 Pro", "SM-"):
+            self.assertIsNone(device.decode_samsung_model(bad), bad)
+
+    def test_unknown_suffix_is_admitted(self):
+        info = device.decode_samsung_model("SM-F971Z")
+        self.assertIn("unrecognized", info["region"])
+
+    def test_model_without_suffix_omits_region(self):
+        info = device.decode_samsung_model("SM-F971")
+        self.assertIsNotNone(info)
+        self.assertNotIn("region", info)
+
+    def test_digest_marks_the_prior_as_a_prior(self):
+        """It must not read as a measurement -- the driver is what settles it."""
+        report = {
+            "is_android": True, "machine": "aarch64",
+            "model_decoded": device.decode_samsung_model("SM-F971U"),
+            "properties": {}, "cpu": {"cores": 8}, "memory": {}, "storage": [],
+            "vulkan": {"available": False}, "gpu": {"family": "unknown", "note": ""},
+        }
+        text = device.digest(report)
+        self.assertIn("soc_prior=", text)
+        self.assertIn("prior only", text)

@@ -45,10 +45,11 @@ textures, and materials in a form a renderer could consume.
 
 ## Phase 2 — Reference runtime (the oracle)
 
-**Gated on one device probe.** Reference device is a Galaxy Z Fold 8; whether
-its GPU is Adreno or Xclipse decides whether this phase is realistic at all,
-because Turnip exists for one and not the other. Run `tools/device/device.py`
-before committing effort here. See `docs/DEVICE.md`.
+**Probably viable; confirm before committing effort.** Reference device is a
+Galaxy Z Fold 8, `SM-F971U`. The `U` suffix marks the US variant, and those have
+consistently shipped Qualcomm parts — so Adreno, and so Turnip, which is what
+this phase depends on. That is an inference from naming conventions, not a
+measurement, so run `tools/device/device.py` first. See `docs/DEVICE.md`.
 
 - [ ] Confirm the GPU family, Vulkan version, and texture format support
 - [ ] Box64/FEX + Wine + DXVK + Turnip bring-up (Adreno path)

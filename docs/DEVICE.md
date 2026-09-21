@@ -1,8 +1,8 @@
 # Reference device
 
-All work happens on a **Samsung Galaxy Z Fold 8**. That makes it both the
-development machine and the target, so its capabilities are project inputs
-rather than trivia.
+All work happens on a **Samsung Galaxy Z Fold 8, model `SM-F971U`**. That makes
+it both the development machine and the target, so its capabilities are project
+inputs rather than trivia.
 
 ## What this document does not do
 
@@ -22,13 +22,8 @@ Paste the digest. Every question below becomes answered rather than assumed.
 
 ## The one that decides Phase 2
 
-**Adreno or Xclipse?**
-
-Samsung ships Snapdragon parts (Adreno GPU) in some regions and Exynos parts
-(Xclipse GPU) in others, and the Fold line has historically been
-Snapdragon-consistent — but "historically" is not "verified on your unit."
-
-It matters more than any other single fact:
+**Adreno or Xclipse?** This is the single most consequential fact about the
+device, because it decides whether the Phase 2 reference oracle is realistic:
 
 | | Adreno | Xclipse |
 |---|---|---|
@@ -36,9 +31,26 @@ It matters more than any other single fact:
 | Box64 + Wine + DXVK stack | works; Winlator-class apps depend on it | vendor driver only |
 | Phase 2 viability | good | substantially harder |
 
-If it is Adreno, the reference-oracle path in `ARCHITECTURE.md` is realistic.
-If it is Xclipse, Phase 2 needs rethinking before any effort goes into it.
-`device.py` reports the family and says which case you are in.
+### What the model number says
+
+`SM-F971U` decomposes as: `SM-F9xx` is the Galaxy Z Fold family, and the **`U`
+suffix is the US carrier/unlocked variant**.
+
+That matters, because US variants of Samsung flagships have consistently
+shipped Qualcomm parts — and therefore Adreno — even in generations where other
+regions received Exynos parts with Xclipse graphics. The Fold line has also been
+Snapdragon-consistent across regions for several generations.
+
+**So the expectation is Adreno, and Phase 2 is probably viable.**
+
+Stated precisely: that is an inference from Samsung's naming conventions and
+past regional patterns, not a reading of this unit's hardware. It is a strong
+prior, not a measurement. `device.py` reports it as `soc_prior` and then
+confirms or overturns it from the actual Vulkan driver — which is the only
+thing that actually settles it.
+
+Run the probe before committing effort to Phase 2. The prior says you probably
+will not be disappointed.
 
 ## The other things the probe settles
 
@@ -86,5 +98,17 @@ while running. For Phase 4 this is real design work, not a detail:
 
 ## Current status
 
-Nothing here is measured yet. Run `device.py` and the whole table above stops
-being conditional.
+| Fact | State |
+|---|---|
+| Model | `SM-F971U` — **given** |
+| Family / region | Galaxy Z Fold, US variant — **derived from the model number** |
+| GPU vendor | Adreno — **inferred**, high confidence, unmeasured |
+| Vulkan version, texture formats | **unknown** |
+| RAM, CPU clusters, free storage | **unknown** |
+
+One probe run turns every "inferred" and "unknown" above into a measurement:
+
+```sh
+pkg install python vulkan-tools
+python3 tools/device/device.py --digest
+```

@@ -1,24 +1,20 @@
 # Getting the data
 
-## Can the agent fetch the game itself?
+## Why the data stays on your machine
 
-No. Worth being precise about why, because the reason is not the one people
-usually assume.
+Mechanics, not policy. The session container cannot hold or keep a copy of the
+game, so moving one into it would buy nothing:
 
-It is **not** a permissions problem — the repository owner's authorization to
-reverse-engineer is on file in `CLAUDE.md`. It is a plain access problem:
-
-| Blocker | Detail |
+| Constraint | Detail |
 |---|---|
-| Storefront auth | Prey is sold through Steam, GOG and Bethesda.net. Downloading requires an account login, and on Steam a Steam Guard second factor. |
-| Credentials | An agent should not be handling your storefront account credentials, and you should not paste them into a chat session. This one is a hard line, not an inconvenience. |
-| Ephemeral container | The session container is reclaimed after inactivity. A 20+ GB download would not survive to the next session. |
-| Size | The install is ~41 GB. The container has ~30 GB free, so it could not be held here regardless. |
-| Git is not a game drive | GitHub caps files at 100 MB. Git LFS lifts that but its free tier is ~1 GB of storage and bandwidth. A full install does not fit, and pushing one would be a poor use of the quota regardless. |
+| Disk | The install is ~41 GB. The container has ~30 GB free. It does not fit. |
+| Lifetime | The container is reclaimed after inactivity, so anything not committed is gone. A long transfer buys nothing that survives. |
+| Git is not a game drive | GitHub caps files at 100 MB. Git LFS lifts that, but its free tier is ~1 GB of storage and bandwidth. |
+| Nothing needs it | The facts worth having weigh kilobytes. Moving gigabytes to extract them would be work for no return. |
 
-Verified in this environment: outbound HTTPS works and `store.steampowered.com`
-is reachable, but that yields the *store page*, not the game. GitHub access is
-scope-limited to this repository. No game data is present on the container.
+Measured in this environment rather than assumed: ~30 GB free, GitHub access
+scope-limited to this repository, no game data present.
+
 
 **For the concrete steps — including doing all of it on a phone — see
 [`TRANSFER.md`](TRANSFER.md).** This document covers why the workflow is shaped
