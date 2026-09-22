@@ -39,6 +39,24 @@ This is a data-integrity question and nothing more. It says nothing about where
 a copy came from — a repack is a repack however it was obtained, and a bit-exact
 copy of retail media is bit-exact however it arrived.
 
+### Repacked installs specifically
+
+Repacks vary in ways that matter here, and the verdict distinguishes them:
+
+- Some compress only the *installer payload* and restore the original archives
+  byte-for-byte. Provenance comes back `consistent` and everything is usable.
+- Some recompress the `.pak` archives themselves. Provenance comes back
+  `mixed`; content facts stay good, layout facts describe the repacker.
+- Most strip optional content — additional language audio, sometimes video.
+  Archives will simply be missing from the inventory.
+
+Do not assume the worst case. Run the probe and read the verdict.
+
+That third point has a useful side effect: a repack is often **substantially
+smaller** than the retail install. Against the 26.64 GB free measured in
+`DEVICE.md`, that may be the difference between fitting and not — check the
+real on-disk size rather than assuming ~41 GB.
+
 ## Archives — `.pak`
 
 **UNVERIFIED.** CryPak archives are ZIP containers. CryEngine writes a custom
