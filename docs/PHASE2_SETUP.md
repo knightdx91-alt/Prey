@@ -38,6 +38,29 @@ Measured, from `docs/DEVICE.md`: Vulkan 1.4.295, Qualcomm driver 512.842.19,
 Adreno 840. That is a modern Vulkan level, so the hardware is not the
 constraint — driver maturity is.
 
+## First run — the checklist
+
+Everything else in this file is context. This is the sequence.
+
+- [ ] **1. Create a container and open the graphics driver dropdown.**
+      Before running anything, write down every option it lists. This is the
+      gating unknown — whether anything here handles Adreno 840. Thirty
+      seconds, and it decides the next move.
+- [ ] **2. Pick a driver.** Newest Turnip first. Note which you chose.
+- [ ] **3. Set the resolution low** — 1280x720. Tune up later, never down
+      from a crash.
+- [ ] **4. Map a drive** to the extracted game folder. Do not copy the game
+      into the container.
+- [ ] **5. Launch `Prey.exe`** and record exactly what happens.
+
+Report back: the driver list from step 1, which one you used, and what step 5
+did — a black screen, a crash, an error box, a menu. All four are useful and a
+crash is not a setback.
+
+If it fails, change **only the driver** and try again before touching anything
+else. That is the variable most likely to matter and the one that keeps the
+result interpretable.
+
 ## Where to get it
 
 Not on the Play Store — these are sideloaded APKs, published on each project's
