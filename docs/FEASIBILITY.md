@@ -49,11 +49,87 @@ of that exists here, and no amount of clever tooling substitutes for it.
 
 Phase 4 as written should be treated as out of scope, not as distant.
 
+## "Port" means four different things
+
+The earlier assessment answered only the hardest reading of the word and
+treated the others as if they were not ports. That was too narrow. Ranked by
+difficulty:
+
+### 1. Bundled-stack APK — **achievable**
+
+Ship the translation layer *inside* an Android app. A single APK containing a
+preconfigured Wine prefix, Box64, DXVK, the driver, and a launcher that boots
+straight into the game. The user taps an icon and Prey starts. No Winlator UI,
+no container setup, no drive mapping.
+
+Under the hood it is still translation. From every practical angle — install,
+icon, launch, play — it is an Android port. The components are open source and
+this is largely integration work: take a working container configuration and
+wrap it.
+
+**This is almost certainly what "an Android port" should mean for this
+project.** It is reachable solo, and the work is assembly rather than
+invention.
+
+### 2. Static recompilation (AOT) — **research-grade**
+
+Instead of translating x86-64 at runtime, translate the whole binary to native
+ARM64 *ahead of time*, then compile and link it. The output is genuinely native
+code, and the per-instruction emulation overhead disappears.
+
+This is a real technique — it is how several N64 titles got true native ports,
+via tooling that statically recompiles the ROM to C. Applying it to a modern
+x86-64 Windows binary is far harder: variable-length instructions, indirect
+jumps, dynamic linking, exception handling and TLS all resist static analysis
+in ways an N64 ROM does not. Nothing production-grade exists for a title of
+this size.
+
+It also would not remove the dependency on Win32 and D3D11 — those still need
+Wine and DXVK underneath. So it is a **performance optimization on path 1**,
+not an escape from it.
+
+Worth knowing about. Not worth starting with.
+
+### 3. Engine substitution — **partial, useful for other reasons**
+
+CryEngine itself has had Android as a build target. A stock CryEngine build on
+Android could plausibly load some of Prey's assets — but Prey's *game* lives in
+its compiled binary, not in its data, so this yields an engine that renders
+Prey's art and does not play Prey.
+
+Not a path to the goal. Genuinely useful for Phase 1 and 3, though: an
+independent renderer that can open extracted assets is a strong way to validate
+that the format parsers are correct.
+
+### 4. Full reimplementation — **out of reach**
+
+Covered above. The blocker is the absence of a decompilation. devilutionX had
+one for a ~1.4 MB binary; Prey is tens of megabytes of optimized C++, and a
+matching decompilation at that scale is a multi-year effort for a substantial
+team. Nobody has attempted it.
+
+If that ever existed, path 4 opens. Until then it does not.
+
+## The ladder
+
+Work them in order, because each stage produces something usable and informs
+the next:
+
+1. **Get it running in Winlator at all.** Bounds everything else.
+2. **Tune it** — driver, Box64 settings, resolution, asset pipeline — until it
+   is actually playable.
+3. **Bundle that configuration into an APK.** Now it is an Android port in the
+   sense that matters.
+4. *Optionally*, explore static recompilation to close the emulation gap.
+
+Stages 1–3 are a real project with a real endpoint. Stage 4 is a research
+project that may never pay off, and nothing before it depends on it.
+
 ## What is actually achievable
 
-Reframe the goal from *"reimplement Prey natively"* to **"run Prey on this
-phone, acceptably."** That version is real, and it is mostly assembly rather
-than invention:
+Reframe the goal from *"reimplement Prey natively"* to **"a tap-to-play
+Android app that runs Prey acceptably."** That version is real, and it is
+mostly assembly rather than invention:
 
 1. **Translation layer** — Box64/FEX for the ISA, Wine for Win32, DXVK for
    D3D11→Vulkan, Turnip for Adreno. All of it exists and is maintained by

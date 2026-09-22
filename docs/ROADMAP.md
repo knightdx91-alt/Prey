@@ -95,6 +95,24 @@ answer and mesh data does not.
 Exit criterion: the full game's data, converted, with a measured install size
 to replace the model's estimate.
 
+## Phase 3.5 — Bundled-stack APK
+
+The actual deliverable. Wrap a working container configuration into a single
+Android app: preconfigured Wine prefix, Box64, DXVK, driver, and a launcher
+that boots straight into the game. Tap an icon, Prey starts.
+
+Still translation underneath, and an Android port by every practical measure.
+Reachable solo — integration work, not invention. See `FEASIBILITY.md`.
+
+- [ ] Reach a playable configuration in Winlator first (Phases 2–3)
+- [ ] Capture that container configuration reproducibly
+- [ ] Build an APK that ships it preconfigured
+- [ ] Launcher that skips the container UI entirely
+- [ ] Bundle or side-load the converted assets from Phase 3
+
+Exit criterion: an installable app that launches Prey without the user
+touching a container setting.
+
 ## Phase 4 — Native runtime (OUT OF SCOPE)
 
 > **See `docs/FEASIBILITY.md`.** This phase is not a port. Prey runs on
