@@ -110,6 +110,51 @@ team. Nobody has attempted it.
 
 If that ever existed, path 4 opens. Until then it does not.
 
+## What the finished thing actually feels like
+
+Separate question from whether it runs, and worth being blunt about early.
+
+### Out of the box: a Windows game on a phone screen
+
+Launched through Winlator as-is, Prey renders inside a Wine desktop. A mouse
+cursor. Windows menus. A HUD laid out for a monitor at desk distance. Controls
+expecting a keyboard and mouse, with touch standing in for a mouse badly.
+
+It is Prey-for-Windows displayed on Android. Nothing about it is Android.
+
+### What can be fixed, by layer
+
+| Layer | Achievable? | How |
+|---|---|---|
+| **Launch experience** | **fully** | The bundled APK (Phase 3.5). Tap an icon, go straight into the game, never see a container UI. Indistinguishable from launching any Android app. |
+| **Controls** | **largely** | These stacks ship touch-input mapping — on-screen sticks and buttons bound to keys, touch-to-look. This is how people actually play PC games on phones. Good, not native-feeling. |
+| **Resolution / quality** | **yes** | CryEngine titles are heavily configurable through console variables and config files. Worth checking which ones Prey exposes — that is Phase 1 work paying off somewhere unexpected. |
+| **HUD and UI scale** | **partly** | Depends entirely on what the game exposes. If UI scale is a cvar, it is a config edit. If it is baked into the UI assets, it means modifying the game. |
+| **Performance tuning** | **yes** | The asset pipeline. Lower-resolution textures cut memory pressure and bandwidth, which is the constraint that actually bites on mobile. |
+
+### The honest ceiling
+
+**It will not feel like a game built for Android, and no amount of work in
+scope here changes that.**
+
+Prey was designed for mouse and keyboard, at desk distance, on a 16:9 monitor,
+by people who assumed a GPU with dedicated VRAM. Translation gets it running.
+Input mapping makes it playable. Asset work makes it fit and hold a framerate.
+None of that redesigns the game for a phone — that would mean modifying the
+game itself, which lands back in the reimplementation problem.
+
+The realistic target is **"a PC game that plays well on this device,"** not
+"a phone game." Set expectations there and the result is satisfying. Set them
+at the other one and it never will be.
+
+### One genuine advantage
+
+The reference device folds open to roughly 8 inches. That is a far better
+surface for a desktop-designed HUD than a normal phone, and it materially
+improves the input-mapping experience — there is room for on-screen controls
+that do not cover what you are looking at. The foldable is an asset here, not
+just a thermal liability.
+
 ## The ladder
 
 Work them in order, because each stage produces something usable and informs
