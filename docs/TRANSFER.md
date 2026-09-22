@@ -129,15 +129,49 @@ proportions and starts using your install's real mix.
 
 This is the better situation, and it changes the order of operations.
 
-### Run the probe there first
+### Prerequisite: Python
 
-A laptop has real Python, a fast CPU and no Termux quirks. Ten minutes there
-produces what the phone cannot easily:
+The tooling is standard-library-only, but it does need an interpreter. On
+Windows, fastest first:
 
-```sh
-python3 tools/probe/probe.py "C:/path/to/Prey" -o report.json --digest digest.txt
-python3 tools/budget/budget.py --report report.json --all-profiles
+```powershell
+winget install Python.Python.3.12
 ```
+
+`winget` ships with Windows 10 (1709+) and 11 and sets PATH itself. **Open a
+new terminal afterwards** so the updated PATH is picked up.
+
+Failing that, the installer from python.org works — **tick "Add python.exe to
+PATH"** on the first screen, which is easy to miss and causes every
+`python: command not found` afterwards.
+
+Verify before continuing:
+
+```powershell
+python --version
+```
+
+Note it is `python` on Windows, not `python3` — `python3` often hits the
+Microsoft Store stub instead.
+
+### Run the probe there
+
+A PC has a fast CPU and none of Termux's quirks. Ten minutes there produces
+what the phone cannot easily:
+
+```powershell
+git clone https://github.com/knightdx91-alt/Prey
+cd Prey
+python tools\probe\probe.py "C:\Program Files (x86)\Steam\steamapps\common\Prey" -o report.json --digest digest.txt
+python tools\budget\budget.py --report report.json --all-profiles
+```
+
+Quote the game path — `Program Files (x86)` contains spaces and parentheses
+that break an unquoted command. No git? GitHub's web UI has a Download ZIP
+button.
+
+Do not run `device.py` on a PC; it probes Android and will only report
+`NOT ANDROID`.
 
 That does three things at once:
 
