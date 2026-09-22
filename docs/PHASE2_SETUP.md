@@ -186,10 +186,17 @@ differ — the mechanism will not.
 
 ### If it came as an installer
 
-If what you have is `setup.exe` rather than an installed game folder, run the
-installer *inside* a container first and let it install to the container's
-`C:`. Bear in mind the ~41 GB then lands in app private storage, so prefer an
-already-installed folder where possible.
+If what you have is `setup.exe` rather than an installed game folder, run it
+inside a container — but **change the destination to the mapped drive, not
+`C:`**. The container's `C:` lives in app private storage, so installing there
+buries tens of gigabytes somewhere awkward and duplicates them per container.
+
+Watch the space budget too: an installer writes a *second* full copy, so you
+need source plus destination free at once. Against the measured 26.64 GB free
+and a ~41 GB title, that does not fit. An already-installed game folder avoids
+the problem entirely.
+
+See `PHASE2_LOG.md` for what has actually been tried.
 
 ## Prey-specific concerns
 
