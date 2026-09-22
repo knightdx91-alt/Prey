@@ -124,3 +124,70 @@ would bite.
 
 One variable at a time. A crash that reproduces on demand is a tractable bug;
 the aim of this round is to make it reproduce on demand.
+
+---
+
+## 2026-09-22 — same sequence, no crash
+
+**Result:** Repeated the suit sequence. It did not crash.
+
+### What this narrows
+
+The crash is **not reliably reproducible at that point**, which is evidence
+against the deterministic causes and toward the stateful ones:
+
+| Now less likely | Now more likely |
+|---|---|
+| A shader DXVK cannot compile | **RAM exhaustion** |
+| A specific asset or effect | Thermal throttling |
+| A missing Vulkan feature path | Driver instability under load |
+| A scripted-sequence code path | Background app eviction |
+
+Stated precisely: one clean pass shows it is not *consistently* deterministic.
+It does not prove randomness — a state-dependent trigger would also survive one
+retry. But the leading hypothesis has moved.
+
+### Why memory leads
+
+`DEVICE.md` measured 10.83 GB total with **~3.09 GB actually free**, against a
+game that expects 8 GB+ on desktop. Add Wine, Box64 and DXVK's own overhead on
+top of Prey's working set. A crash that comes and goes at the same story point
+is exactly the shape of an allocation failing when the device happens to be
+under more pressure — a different set of background apps resident, a warmer
+device, a slightly different streaming order.
+
+### The strategic consequence
+
+If memory is the cause, **Phase 3 stops being only a size optimisation and
+becomes the stability fix.** Lower-resolution textures cut the streaming
+footprint directly. That reorders the project: the asset pipeline earns its
+place sooner than "make the install smaller" implied.
+
+That connection is worth confirming before acting on it.
+
+### Accumulate a pattern
+
+A single crash is an anecdote. Record each one and the shape emerges:
+
+| Field | Why |
+|---|---|
+| Minutes into the session | Separates early failures from heat-soak failures |
+| Where / what was happening | Finds asset-load correlation |
+| Device warm or cool | Thermal signal |
+| Other apps open beforehand | Memory-pressure signal |
+| Settings in use | Lets a change be attributed |
+
+Four or five entries should distinguish memory from thermals: memory-driven
+crashes cluster around heavy loads regardless of elapsed time, thermal ones
+cluster after sustained play.
+
+### Worth trying now
+
+CryEngine exposes texture streaming budgets as console variables —
+`r_TexturesStreamPoolSize` is the relevant one, sized in MB, and is typically
+settable from a `system.cfg` beside the executable. Whether Prey honours it is
+unverified and cheap to test.
+
+Lowering it trades texture pop-in for a smaller resident footprint, which is
+the correct trade here. If crash frequency drops, that both confirms the
+memory hypothesis and buys stability before the asset pipeline exists.

@@ -69,7 +69,10 @@ Turnip applies. See `docs/DEVICE.md`.
       gameplay on device**
 - [x] Get to a main menu — **passed; reached early gameplay**
 - [ ] Diagnose the early-suit-sequence crash (see `PHASE2_LOG.md`)
-- [ ] Establish whether crashes are deterministic or memory-driven
+- [ ] Establish whether crashes are deterministic or memory-driven —
+      **one clean retry moved the hypothesis toward memory;** accumulate 4-5
+      crash records to confirm
+- [ ] Test whether Prey honours `r_TexturesStreamPoolSize` as a stopgap
 - [ ] Capture reference frames for the native renderer to diff against
 - [ ] Profile honestly and publish the numbers, however bad they are —
       over a sustained run, since a foldable throttles sooner than a slab
@@ -79,7 +82,11 @@ a capture to compare against later.
 
 ## Phase 3 — Asset pipeline
 
-Desktop install is ~41 GB. The model in `docs/SIZE_BUDGET.md` puts a balanced
+**May be the stability fix, not just a size fix.** If the Phase 2 crashes are
+memory-driven, lower-resolution textures cut the streaming footprint directly
+and this phase moves earlier in priority. See `PHASE2_LOG.md`.
+
+Desktop install is 29.3 GiB on disk, 59.5 GiB uncompressed. The model in `docs/SIZE_BUDGET.md` puts a balanced
 mobile build near 9.5 GB, and names geometry — not textures — as the largest
 remaining category, because texture compression has a well-understood mobile
 answer and mesh data does not.
