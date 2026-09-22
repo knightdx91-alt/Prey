@@ -13,11 +13,33 @@ starts. No container UI, no drive mapping, no Wine desktop.
 
 It is **two steps**, and the second is the one people miss.
 
-**1. Create the shortcut inside Winlator.** Start the container, open the file
-manager on the Wine desktop, navigate to the mapped drive, and **long-press
-`Prey.exe`** rather than tapping it. A menu should offer something like
-"Create shortcut" / "Add shortcut". The new entry then appears in Winlator's
-own **Shortcuts** list, alongside the Containers list on the main screen.
+**1. Create the shortcut inside Winlator.** Two routes; try the second first if
+the Wine desktop is awkward.
+
+*Route A — from Winlator's Shortcuts list.* On the main screen, open the
+**Shortcuts** tab and look for a `+` or "Add" control. Some builds let you
+browse to an executable directly from there, which skips the Wine desktop
+entirely.
+
+*Route B — from the Wine file manager.* Open the file manager on the Wine
+desktop, navigate to the mapped drive, and **right-click `Prey.exe`**.
+
+Inside Wine, a long-press is *not* a right-click — the desktop is a real
+Windows environment and needs a genuine right mouse button. On touch that is
+usually:
+
+| Gesture | Effect |
+|---|---|
+| **Two-finger tap** | right click (the usual mapping in touchpad mode) |
+| One-finger tap | left click |
+| Long-press | often nothing, or a drag |
+
+Winlator-class apps generally offer a **touchscreen** and a **touchpad** input
+mode, and the gestures differ between them. There may also be an on-screen
+control overlay with explicit mouse buttons.
+
+A **Bluetooth or USB mouse** sidesteps all of it and makes the Wine desktop far
+easier to work with generally — worth connecting one if available.
 
 **2. Push it to the Android home screen.** Back on Winlator's main screen,
 **long-press the shortcut** in the Shortcuts list. That menu should offer "Add
@@ -36,7 +58,12 @@ shortcut's settings are exactly what Stage 3 would hardcode.
 > executable, then export to the home screen — is what holds; look for options
 > matching that shape rather than those exact words.
 
-**This delivers most of what "an APK I can install" actually means.** It is not
+**This is a convenience, not a blocker.** The game already launches by
+starting the container and running the executable; a shortcut only removes
+those taps. If it will not cooperate, skip it — playtime and crash records are
+the work that actually matters right now.
+
+**It delivers most of what "an APK I can install" actually means.** It is not
 a separate app, but the experience — icon on the home screen, tap to play — is
 identical. Worth doing immediately, both because it costs nothing and because
 it is the thing to reproduce later in a real APK.
