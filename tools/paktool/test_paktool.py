@@ -274,3 +274,65 @@ class WriterSignatureTest(unittest.TestCase):
         self._write(create_system=0, create_version=63)
         with paktool.Pak(self.path) as pak:
             self.assertEqual(pak.read(pak.entries[0]), payload)
+
+
+class SafePathTest(unittest.TestCase):
+    """Archive names are attacker-controlled. The guard has two layers: name
+    sanitisation, then a containment check on the resolved path."""
+
+    def test_normal_names_pass_through(self):
+        self.assertEqual(paktool._safe_relative("Objects/m.cgf"), "Objects/m.cgf")
+
+    def test_leading_separators_stripped(self):
+        self.assertEqual(paktool._safe_relative("/etc/passwd"), "etc/passwd")
+        self.assertEqual(paktool._safe_relative("//x/y"), "x/y")
+
+    def test_windows_drive_prefix_stripped(self):
+        """os.path.join(out, 'C:/x') yields 'C:/x' on Windows -- a drive
+        component discards everything before it and escapes the output dir."""
+        self.assertEqual(paktool._safe_relative("C:/Windows/evil.dll"), "Windows/evil.dll")
+        self.assertEqual(paktool._safe_relative("c:evil.txt"), "evil.txt")
+        self.assertEqual(paktool._safe_relative("D:\\a\\b"), "a/b")
+
+    def test_backslashes_normalised(self):
+        self.assertEqual(paktool._safe_relative("a\\b\\c"), "a/b/c")
+
+    def test_empty_rejected(self):
+        self.assertIsNone(paktool._safe_relative(""))
+        self.assertIsNone(paktool._safe_relative("/"))
+
+    def test_traversal_survives_sanitisation_but_is_caught_downstream(self):
+        """_safe_relative deliberately leaves '..' alone; containment is the
+        layer that rejects it, since that check is path-resolution aware."""
+        self.assertEqual(paktool._safe_relative("../../escape"), "../../escape")
+
+    def test_extract_rejects_drive_prefixed_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = os.path.join(tmp, "evil.pak")
+            with zipfile.ZipFile(archive, "w") as z:
+                z.writestr("C:/Windows/evil.dll", b"nope")
+                z.writestr("ok.txt", b"fine")
+
+            out = os.path.join(tmp, "out")
+            rc = paktool.main(["extract", archive, "-o", out])
+            self.assertEqual(rc, 0, "drive prefix is stripped, not an error")
+
+            # It must land inside out/, never at a drive root.
+            landed = [
+                os.path.relpath(os.path.join(r, f), out).replace(os.sep, "/")
+                for r, _, files in os.walk(out) for f in files
+            ]
+            self.assertEqual(sorted(landed), ["Windows/evil.dll", "ok.txt"])
+
+    def test_extract_still_blocks_traversal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = os.path.join(tmp, "evil.pak")
+            with zipfile.ZipFile(archive, "w") as z:
+                z.writestr("../../escaped.txt", b"nope")
+                z.writestr("ok.txt", b"fine")
+
+            out = os.path.join(tmp, "nested", "out")
+            rc = paktool.main(["extract", archive, "-o", out])
+            self.assertEqual(rc, 1)
+            self.assertFalse(os.path.exists(os.path.join(tmp, "escaped.txt")))
+            self.assertTrue(os.path.exists(os.path.join(out, "ok.txt")))

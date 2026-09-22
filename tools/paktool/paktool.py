@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import os
+import re
 import struct
 import sys
 import zlib
@@ -369,6 +370,28 @@ def _human(n: float) -> str:
     return f"{n:.1f} GiB"
 
 
+def _safe_relative(name: str) -> str | None:
+    """Reduce an archive entry name to a safe relative path, or reject it.
+
+    Archive names are attacker-controlled. Two things have to go before the
+    name touches the filesystem:
+
+    - **Leading separators**, which would make the path absolute.
+    - **A Windows drive prefix.** ``os.path.join(out, "C:/x")`` yields
+      ``C:/x`` on Windows, because a drive-absolute component discards
+      everything before it. That escapes the output directory outright, and a
+      POSIX-only check never sees it.
+    """
+    candidate = name.replace("\\", "/").lstrip("/")
+    # Strip any drive prefix, including one hiding behind a traversal segment.
+    candidate = re.sub(r"^[A-Za-z]:[/\\]*", "", candidate)
+    if not candidate or candidate.startswith("/"):
+        return None
+    if re.match(r"^[A-Za-z]:", candidate):
+        return None
+    return candidate
+
+
 def _select(entries: list[Entry], pattern: str | None) -> list[Entry]:
     files = [e for e in entries if not e.is_dir]
     if not pattern:
@@ -449,9 +472,18 @@ def cmd_extract(args: argparse.Namespace) -> int:
         chosen = _select(pak.entries, args.pattern)
         for e in chosen:
             # Refuse absolute paths and traversal before touching the filesystem.
-            rel = e.name.lstrip("/")
+            rel = _safe_relative(e.name)
+            if rel is None:
+                failures.append((e.name, "unsafe path, skipped"))
+                continue
             dest = os.path.abspath(os.path.join(out_root, rel))
-            if os.path.commonpath([out_root, dest]) != out_root:
+            try:
+                inside = os.path.commonpath([out_root, dest]) == out_root
+            except ValueError:
+                # Windows raises when the paths are on different drives, which
+                # is itself the answer: the destination escaped out_root.
+                inside = False
+            if not inside:
                 failures.append((e.name, "unsafe path, skipped"))
                 continue
 
