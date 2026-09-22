@@ -157,18 +157,43 @@ Microsoft Store stub instead.
 ### Run the probe there
 
 A PC has a fast CPU and none of Termux's quirks. Ten minutes there produces
-what the phone cannot easily:
+what the phone cannot easily.
+
+**Run these one at a time**, pressing Enter after each. Pasting the whole block
+at once makes the later lines become arguments to the first command, which
+fails with a confusing path error.
+
+Get the tooling (once):
 
 ```powershell
 git clone https://github.com/knightdx91-alt/Prey
+```
+
+```powershell
 cd Prey
-python tools\probe\probe.py "C:\Program Files (x86)\Steam\steamapps\common\Prey" -o report.json --digest digest.txt
+```
+
+Survey the install — substitute your own game path:
+
+```powershell
+python tools\probe\probe.py "C:\Games\Prey" -o report.json --digest digest.txt
+```
+
+Then, separately:
+
+```powershell
 python tools\budget\budget.py --report report.json --all-profiles
 ```
 
-Quote the game path — `Program Files (x86)` contains spaces and parentheses
-that break an unquoted command. No git? GitHub's web UI has a Download ZIP
-button.
+**The tool paths are relative to the repo**, so `cd` into it first — running
+from a home directory gives `No such file or directory`.
+
+Quote the game path. `Program Files (x86)` contains spaces and parentheses that
+break an unquoted command, and quoting costs nothing when it is not needed.
+
+The clone needs git (`winget install Git.Git`). Without it, use GitHub's
+Download ZIP button, extract, and `cd` into the extracted folder instead.
+
 
 Do not run `device.py` on a PC; it probes Android and will only report
 `NOT ANDROID`.
