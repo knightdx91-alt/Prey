@@ -125,6 +125,63 @@ That is most of `ASSET_FORMATS.md` promoted from UNVERIFIED in a single step,
 and it also feeds `budget.py --report` so the size model stops using assumed
 proportions and starts using your install's real mix.
 
+## When the game is on a PC
+
+This is the better situation, and it changes the order of operations.
+
+### Run the probe there first
+
+A laptop has real Python, a fast CPU and no Termux quirks. Ten minutes there
+produces what the phone cannot easily:
+
+```sh
+python3 tools/probe/probe.py "C:/path/to/Prey" -o report.json --digest digest.txt
+python3 tools/budget/budget.py --report report.json --all-profiles
+```
+
+That does three things at once:
+
+1. **Unblocks Phase 1.** Every UNVERIFIED entry in `ASSET_FORMATS.md` becomes
+   answerable — compression methods, chunk versions, the audio middleware, Lua
+   encoding.
+2. **Replaces the assumed size split** with the install's real category mix, so
+   the footprint model stops guessing.
+3. **Tells you what is safe to leave behind.** The extension and archive
+   inventory shows where the gigabytes actually are. Optional language packs
+   and similar are usually several GB and usually unnecessary.
+
+Point 3 matters immediately: the device has **26.64 GB free** against a ~41 GB
+title. Something has to give, and knowing *what* beats deleting blindly.
+
+### Then copy the installed folder, not an installer
+
+Copying an already-installed tree is strictly better than running setup inside
+a container:
+
+- **One copy, not two.** An installer needs source and destination resident at
+  once — roughly 82 GB for a 41 GB game. A straight copy needs 41.
+- **No installer compatibility risk.** Wine running a game is one problem;
+  Wine running an installer is a second, unrelated one. Skip it.
+- **It is the shape the drive-mapping approach wants** anyway.
+
+### Getting 41 GB across
+
+| Method | Notes |
+|---|---|
+| `adb push` | Reliable for large transfers; needs USB debugging enabled |
+| Network (SMB / FTP / rsync over wifi) | Often faster and more robust than USB MTP |
+| USB-C file transfer | Works, but MTP handles very large trees poorly |
+
+Prefer something resumable. A 41 GB transfer that fails at 90% over MTP with
+no resume is a bad evening.
+
+### Watch for a storefront dependency
+
+If the install came from a storefront, the executable may expect that client to
+be running. That is a separate problem from the game itself and a common first
+failure under Wine — worth knowing before concluding the translation layer is
+at fault.
+
 ## If Termux is not an option
 
 Any machine with Python 3.9+ works — the install does not have to be on the
