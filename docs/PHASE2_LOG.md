@@ -59,3 +59,68 @@ entirely — map a drive to it and skip the installer.
 Whether it completes or runs out of room, the useful report is the same: where
 it installed to, how much space it consumed, and then what `Prey.exe` itself
 does on first launch.
+
+---
+
+## 2026-09-22 — the game runs, then crashes early
+
+**Result:** Prey launches through Winlator, renders 3D gameplay, and reaches
+the early suit sequence before crashing.
+
+### What this settles
+
+Phase 2's central question. The full stack carried a CryEngine deferred
+renderer on a phone:
+
+- Box64 executing x86-64 game code on ARM64
+- Wine servicing Win32 at gameplay scale, not just an installer
+- DXVK translating Prey's D3D11 usage to Vulkan
+- The Adreno 840 driver running the result
+
+Every risk flagged in `PHASE2_SETUP.md` about whether the driver, DXVK or
+CryEngine's renderer would cooperate is now answered: they do. The translation
+layer is viable, not speculative.
+
+That promotes the project from "might be possible" to "demonstrably runs, and
+the work is now stability and performance."
+
+### What it does not settle
+
+It reached an early scripted sequence, not a play session. Still unknown:
+frame rate under sustained load, thermal behaviour past ten minutes, whether
+later and heavier areas load at all, and whether the crash is a one-off or the
+first of many.
+
+### The crash — triage
+
+Not diagnosed. The single most useful fact is not yet known:
+
+> **Does it crash at the same point every time?**
+
+That splits the diagnosis cleanly:
+
+| Reproducible at the same point | Non-deterministic |
+|---|---|
+| A specific shader DXVK cannot compile | RAM exhaustion |
+| A specific asset or effect | Thermal throttling / timing |
+| A missing Vulkan feature path | Driver instability under load |
+| A scripted-sequence code path | Background app eviction |
+
+**RAM is the leading suspect if it is non-deterministic.** `DEVICE.md` measured
+10.83 GB total with ~3.09 GB actually free, against a game that expects 8 GB+
+on desktop. A streaming spike during a scripted sequence is exactly where that
+would bite.
+
+### What to gather next
+
+1. **Reproduce it.** Same save, same action, three times. Same point or not?
+2. **Capture the log.** Winlator keeps Wine's output; `DXVK_LOG_LEVEL=info`
+   adds shader and device detail. The last lines before the crash usually name
+   the subsystem.
+3. **Cut memory pressure.** Close everything else, drop resolution and texture
+   quality, retry. If the crash moves or disappears, it is memory.
+4. **Change only the driver.** If it is deterministic and survives a driver
+   swap, it is the game or DXVK; if it moves, it is the driver.
+
+One variable at a time. A crash that reproduces on demand is a tractable bug;
+the aim of this round is to make it reproduce on demand.

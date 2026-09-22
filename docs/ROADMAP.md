@@ -65,8 +65,11 @@ Turnip applies. See `docs/DEVICE.md`.
 - [x] Texture format support — **BC, ASTC LDR+HDR and ETC2 all supported**
 - [ ] Establish whether current Turnip supports Adreno 840 — the gating
       unknown, since driver maturity for new silicon lags the hardware
-- [ ] Box64/FEX + Wine + DXVK bring-up (Adreno path)
-- [ ] Get to a main menu; record everything that breaks getting there
+- [x] Box64/FEX + Wine + DXVK bring-up — **done; the game renders 3D
+      gameplay on device**
+- [x] Get to a main menu — **passed; reached early gameplay**
+- [ ] Diagnose the early-suit-sequence crash (see `PHASE2_LOG.md`)
+- [ ] Establish whether crashes are deterministic or memory-driven
 - [ ] Capture reference frames for the native renderer to diff against
 - [ ] Profile honestly and publish the numbers, however bad they are —
       over a sustained run, since a foldable throttles sooner than a slab
