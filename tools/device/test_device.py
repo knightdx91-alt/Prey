@@ -188,13 +188,24 @@ class DigestTest(unittest.TestCase):
 
     def test_budget_check_reports_shortfall(self):
         """A nearly-full phone must say so, not quietly pass."""
-        text = device.digest(self._report(8.0))
-        self.assertIn("short by", text)
-        # aggressive (6.7) fits in 8 GB; quality (20.9) does not.
-        aggressive = next(l for l in text.splitlines() if "aggressive" in l)
-        quality = next(l for l in text.splitlines() if "quality" in l)
-        self.assertIn("fits", aggressive)
-        self.assertIn("short by", quality)
+        profiles = dict(device.BUDGET_PROFILES)
+        # Pick free space that clears the smallest profile and not the largest,
+        # derived from the constants so measured updates cannot break this.
+        smallest, largest = min(profiles.values()), max(profiles.values())
+        free = (smallest + largest) / 2
+        text = device.digest(self._report(free))
+
+        output_block = text.split("during conversion")[0]
+        small_line = next(
+            l for l in output_block.splitlines()
+            if min(profiles, key=profiles.get) in l
+        )
+        large_line = next(
+            l for l in output_block.splitlines()
+            if max(profiles, key=profiles.get) in l
+        )
+        self.assertIn("fits", small_line)
+        self.assertIn("short by", large_line)
 
     def test_flags_when_not_android(self):
         report = self._report(200)
@@ -397,5 +408,8 @@ class ConversionPeakTest(unittest.TestCase):
 
     def test_peak_is_source_plus_output(self):
         text = self._digest(1)
-        expected = device.SOURCE_GB + 9.5
-        self.assertIn(f"{expected:.1f} GB", text)
+        peak_block = text.split("during conversion")[1]
+        for name, need in device.BUDGET_PROFILES:
+            expected = device.SOURCE_GB + need
+            line = next(l for l in peak_block.splitlines() if name in l)
+            self.assertIn(f"{expected:.1f} GB", line, name)

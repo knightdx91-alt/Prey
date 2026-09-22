@@ -399,13 +399,30 @@ class ProvenanceTest(unittest.TestCase):
         self.assertEqual(result["distinct_writers"], 2)
         self.assertTrue(any("writer signatures" in s for s in result["signals"]))
 
-    def test_timestamp_span_is_flagged(self):
+    def test_timestamp_span_alone_does_not_mean_repacked(self):
+        """CryPak preserves each source asset's own mtime, so a game built
+        over several years ships archives spanning those years. The reference
+        install has 264k entries under one writer signature and timestamps
+        across 2012-2019 -- retail-shaped, and an earlier heuristic called it
+        'mixed' on the timestamps alone."""
         result = probe.assess_provenance([
-            self._archive({"fat/6.3": 10}, "2017-05-05T09:00:00"),
-            self._archive({"fat/6.3": 10}, "2024-03-14T10:00:00"),
+            self._archive({"fat/2.0": 10}, "2012-05-05T09:00:00"),
+            self._archive({"fat/2.0": 10}, "2019-03-14T10:00:00"),
+        ])
+        self.assertEqual(result["verdict"], "consistent")
+        self.assertNotIn("signals", result)
+        # Still reported, as context rather than as a finding.
+        self.assertIn("timestamp_note", result)
+        self.assertIn("not evidence of repacking", result["timestamp_note"])
+
+    def test_writer_mix_still_flags_even_with_tight_timestamps(self):
+        """The writer signature is the signal that actually carries."""
+        result = probe.assess_provenance([
+            self._archive({"fat/2.0": 10}, "2017-05-05T09:00:00"),
+            self._archive({"unix/3.0": 10}, "2017-05-05T09:00:00"),
         ])
         self.assertEqual(result["verdict"], "mixed")
-        self.assertTrue(any("timestamps span" in s for s in result["signals"]))
+        self.assertTrue(any("writer signatures" in s for s in result["signals"]))
 
     def test_no_readable_archives_is_unknown_not_a_verdict(self):
         result = probe.assess_provenance([{"readable_as_zip": False}])

@@ -110,10 +110,14 @@ def decode_samsung_model(model: str) -> dict[str, Any] | None:
 # measurement -- so they are detected and flagged rather than trusted.
 SOFTWARE_RENDERERS = ("llvmpipe", "lavapipe", "swiftshader", "softpipe")
 
-# Desktop install size, and the modelled Android outputs from
-# docs/SIZE_BUDGET.md. Both are estimates; see that document.
-SOURCE_GB = 41.0
-BUDGET_PROFILES = (("aggressive", 6.7), ("balanced", 9.5), ("quality", 20.9))
+# Desktop install size, MEASURED from the reference install (29.3 GiB on disk,
+# 59.5 GiB uncompressed -- see docs/ASSET_FORMATS.md). The Android outputs are
+# modelled from the uncompressed figure; see docs/SIZE_BUDGET.md.
+SOURCE_GB = 29.3
+BUDGET_PROFILES = (
+    ("aggressive", 9.8), ("balanced", 13.8), ("passthrough", 18.4),
+    ("quality", 30.3),
+)
 
 # Where Android keeps the vendor Vulkan driver. Termux can usually stat these
 # even when it cannot load them, which is enough to confirm the real driver

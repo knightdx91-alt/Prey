@@ -21,24 +21,29 @@ so it should not start until the data model is pinned down.
 The goal of this phase is to replace every **UNVERIFIED** in
 `docs/ASSET_FORMATS.md` with something traceable to bytes.
 
-**Blocked on one probe run.** The game data stays on the owner's machine; the
-survey is what crosses. See `GETTING_DATA.md`.
+**First pass complete (2026-09-22).** Everything below was settled by one probe
+run against the reference install. See `ASSET_FORMATS.md` for the evidence.
 
-Settled by the first `probe` run:
+Settled:
 
-- [ ] Archive inventory across the whole install
-- [ ] Whether standard ZIP parsing suffices, and exactly what it misses
-- [ ] Extension histogram — what actually ships, versus what docs imply
-- [ ] `.cgf`/`.chr` chunk header layout and version numbers
-- [ ] Audio middleware, from the ATL implementation DLL
-- [ ] Lua as source or bytecode
+- [x] Archive inventory — **116 archives, 264,336 entries, 0 unreadable**
+- [x] Whether standard ZIP parsing suffices — **yes, entirely.** deflate and
+      store only; zero entries need CryPak-aware decoding
+- [x] Extension histogram — **69.9% of files are texture data**
+- [x] `.cgf`/`.chr` chunk header — **`CrCh`, version 1862, one version
+      across every geometry and animation type**
+- [x] Audio middleware — **Wwise** (13,486 `.wem`, no `.bnk` banks)
+- [x] Lua — **bytecode, 419 files, zero source**
 
-Needs work beyond the probe:
+Still open — all single-file reads now that extraction is known to work:
 
-- [ ] Full `.cgf` chunk *table* parser (the probe reads only the file header)
-- [ ] `.dds` inspection, including the split-mip companion files
-- [ ] `.mtl` parsing, including CryEngine binary XML if that is what ships
-- [ ] CryPak custom codecs, for whatever the probe flags as undecodable
+- [ ] **DDS pixel format.** The FourCC sits at offset 84, past the probe's
+      64-byte sample window. Decides BC1/BC3/BC5/BC7
+- [ ] `.mtl` encoding — text XML or CryEngine binary XML
+- [ ] Lua bytecode variant — which Lua or LuaJIT build
+- [ ] `.cgf` chunk *table* contents (header and offset are known)
+- [ ] `.wem` codec, for the audio re-encode stage
+- [x] ~~CryPak custom codecs~~ — **none exist.** Nothing to do
 
 Exit criterion: a documented, parseable path from a game install to geometry,
 textures, and materials in a form a renderer could consume.

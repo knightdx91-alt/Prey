@@ -394,16 +394,23 @@ def assess_provenance(archives: list[dict[str, Any]]) -> dict[str, Any]:
         result["mtime_min"] = min(lo for lo, _ in spans)
         result["mtime_max"] = max(hi for _, hi in spans)
 
+    # Only a mix of writer signatures indicates repacking. Timestamp spread does
+    # NOT: CryPak preserves each source asset's own mtime, so a game built over
+    # several years legitimately ships archives spanning those years. Treating
+    # that as evidence produced a false "mixed" on a retail-shaped install whose
+    # 264k entries all carried one writer signature.
     notes: list[str] = []
     if len(writers) > 1:
         notes.append(
             f"{len(writers)} distinct ZIP writer signatures across the install; "
             "a single original packing would normally show one"
         )
+
     if len(years) > 1:
-        notes.append(
-            f"entry timestamps span {len(years)} years ({', '.join(sorted(years))}); "
-            "check whether some archives were rewritten later"
+        result["timestamp_note"] = (
+            f"entry timestamps span {len(years)} years "
+            f"({', '.join(sorted(years))}) — normal for a game built over "
+            "several years; not evidence of repacking on its own"
         )
 
     if not writers:
@@ -498,6 +505,8 @@ def digest(report: dict[str, Any], top_ext: int = 30, top_sig: int = 60) -> str:
             add(f"  entry timestamps {prov['mtime_min']} .. {prov['mtime_max']}")
         for signal in prov.get("signals", []):
             add(f"  ! {signal}")
+        if prov.get("timestamp_note"):
+            add(f"  (note) {prov['timestamp_note']}")
 
     signatures = report.get("signatures", [])
     shown = signatures[:top_sig]
@@ -596,6 +605,8 @@ def print_summary(report: dict[str, Any]) -> None:
               f"({prov.get('distinct_writers', 0)} writer signature(s))")
         for signal in prov.get("signals", []):
             print(f"  ! {signal}")
+        if prov.get("timestamp_note"):
+            print(f"  (note) {prov['timestamp_note']}")
 
     print(f"\ndistinct signatures   {len(report.get('signatures', []))}")
     print(f"distinct chunk types  {len(report.get('chunk_variants', []))}")

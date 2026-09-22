@@ -1,9 +1,13 @@
 # Size budget
 
-Prey Digital Deluxe is roughly **41 GB** installed. That number shapes the
-whole port, so it deserves arithmetic rather than a shrug.
+**Measured 2026-09-22** from the reference install: **59.5 GiB uncompressed,
+29.3 GiB compressed on disk**, across 116 archives and 264,336 entries.
 
-Two entirely separate problems hide inside it. They get confused constantly,
+The earlier ~41 GB figure was a headline download size and did not match this
+install. Both real numbers now replace it: 29.3 GiB is what occupies disk,
+59.5 GiB is what the asset pipeline actually has to process.
+
+Two entirely separate problems hide inside that. They get confused constantly,
 and conflating them makes the project look harder than it is.
 
 ## Problem 1: getting 41 GB to the agent — doesn't exist
@@ -40,26 +44,35 @@ python3 tools/budget/budget.py --report prey-report.json   # real category mix
 
 ### Where it lands
 
-Using assumed AAA proportions, since no probe report exists yet:
+Modelled against the measured 59.5 GiB uncompressed:
 
 | Profile | Result | Reduction | Transcoder |
 |---|---|---|---|
-| `quality` | ~20.9 GB | 2.0x | yes |
-| `passthrough` | ~12.6 GB | 3.2x | **no** |
-| `balanced` | ~9.5 GB | 4.3x | yes |
-| `aggressive` | ~6.7 GB | 6.1x | yes |
+| `quality` | ~30.3 GB | 2.0x | yes |
+| `passthrough` | ~18.4 GB | 3.2x | **no** |
+| `balanced` | ~13.8 GB | 4.3x | yes |
+| `aggressive` | ~9.8 GB | 6.1x | yes |
 
-`passthrough` exists because the target GPU turned out to support desktop BC
-(measured — Adreno 840, see `DEVICE.md`). Prey's shipped textures can be
-sampled directly, so that profile only drops resolution: bits-per-pixel is
-unchanged, pixel count quarters, factor 0.25 exactly. It costs about 3 GB
-against `balanced` and needs no transcoder, which makes it the fastest route
-to something that runs.
+`passthrough` exists because the target GPU supports desktop BC (measured —
+Adreno 840, see `DEVICE.md`). Prey's shipped textures can be sampled directly,
+so that profile only drops resolution: bits-per-pixel unchanged, pixel count
+quarters, factor 0.25 exactly. It costs about 4.6 GB against `balanced` and
+needs no transcoder, which makes it the fastest route to something that runs.
 
-The texture math is the load-bearing part. Desktop BC7 is 8 bits per pixel;
-ASTC 6x6 is 3.56, and halving each dimension quarters the pixel count. That is
-`(3.56/8) x 0.25 = 0.111` — a 9x reduction on the single largest category,
-and it is ordinary mobile practice rather than anything clever.
+Against the phone's measured **26.64 GB free**, only `aggressive` and
+`balanced` leave meaningful headroom once the source install is also resident.
+
+### Textures dominate — now confirmed by count, not just assumed
+
+The survey settles what the model had been assuming. Of 264,336 entries,
+**184,812 (69.9%) are texture data** — 27,343 `.dds` plus 157,469 split-mip
+and alpha companion files. Geometry and animation together account for 41,302;
+audio for 13,486.
+
+The category *split by bytes* still comes from the assumed proportions, since
+the digest reports counts rather than per-extension sizes. But a file
+population that is 70% texture makes the model's 55%-by-bytes assumption look
+conservative rather than optimistic.
 
 ### The surprise
 

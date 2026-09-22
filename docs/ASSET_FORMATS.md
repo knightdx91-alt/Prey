@@ -59,48 +59,63 @@ real on-disk size rather than assuming ~41 GB.
 
 ## Archives — `.pak`
 
-**UNVERIFIED.** CryPak archives are ZIP containers. CryEngine writes a custom
-end-of-central-directory record alongside the standard one, supports compression
-methods beyond deflate (store, deflate, and CryEngine-specific codecs), and has
-historically supported per-file encryption in some configurations.
+**VERIFIED** — 116 archives, 264,336 entries, surveyed 2026-09-22.
 
-Practical consequence: a stock ZIP reader gets you a long way and then stops. It
-will enumerate most entries and decompress the stored/deflated ones. Entries
-using a custom codec, and any encrypted entry, need CryPak-aware handling.
+Plain ZIP throughout. Every archive parsed with a standard reader; **zero**
+were unreadable, and **zero** entries needed CryPak-aware decoding.
 
-`tools/paktool/` is built around exactly that expectation — it reads what the
-standard path can read and reports precisely what it could not, rather than
-failing the whole archive.
+| Compression method | Entries |
+|---|---|
+| deflate | 245,483 |
+| store | 18,853 |
 
-Expected locations in a Prey install, to be confirmed against a real one:
+That is the whole list. No CryEngine-specific codec, no encryption, nothing
+outside the standard ZIP set — which overturns this document's earlier
+expectation that a stock reader would "get you a long way and then stop." It
+does not stop. `paktool` reads 100% of the shipped data.
 
-```
-GameSDK/GameData.pak
-GameSDK/Levels/<level>/level.pak
-Engine/*.pak
-```
+Size: **59.5 GiB uncompressed, 29.3 GiB compressed** on disk.
 
 ## Geometry — `.cgf`, `.cga`, `.chr`, `.skin`
 
-**UNVERIFIED.** Chunked format. A file header identifies the format and points
-at a chunk table; each chunk carries a type, a version, and an offset. Mesh
-data, material references, skeleton and skinning data all arrive as chunk types.
+**VERIFIED.** Chunked format using the **`CrCh` header**, not the legacy
+`CryTek\0\0` one, and carrying a **single version — 1862 (0x746)** — across
+every geometry and animation type: `.anm`, `.caf`, `.cga`, `.cgf`, `.chr`,
+`.chrm`, `.img`, `.skin`, `.skinm`.
 
-The version numbers are the thing to look at first. Public `CryHeaders.h` gives
-the stock chunk types and versions; where Prey's differ, the delta is Arkane's
-and has to be reverse-engineered directly.
+One version across the whole install is good news: there is one layout to
+reverse-engineer, not a family of them. Header layout confirmed as `CrCh` +
+version (u32) + chunk count (u32) + chunk table offset (u32), with observed
+table offsets of 16 — i.e. the table follows the header immediately.
+
+Chunk *contents* remain unread; the header and table position are what is
+established.
 
 ## Textures — `.dds`
 
-**UNVERIFIED.** DDS containers, but CryEngine splits mips across companion
-files (`.dds.1`, `.dds.2`, …) for streaming, and the base file may carry a
-CryEngine-specific tail after the standard DDS payload.
+**VERIFIED (partially).** DDS containers confirmed by magic (`DDS ` + header
+size 124). Split-mip streaming confirmed and larger than expected: the
+companion files surface as bare numeric extensions.
 
-Desktop block formats (BC1/3/5/7) are the likely contents. **These do not
-survive contact with Android unmodified** — BC support on mobile GPUs is not
-something to rely on. Transcoding to ASTC is a required pipeline stage, not an
-optimization, and it is why the extraction tooling needs to produce something
-re-encodable rather than just something openable.
+| Kind | Files |
+|---|---|
+| `.dds` base | 27,343 |
+| `.1` … `.8` (mip chain) | 121,927 |
+| `.a`, `.1a` … `.7a` (alpha chain) | 35,542 |
+| **Total texture-related** | **184,812** |
+
+That is **69.9% of all 264,336 entries**. Textures dominate the install by file
+count by a wide margin, which corroborates the size model's assumption that
+they dominate by bytes too.
+
+The mip companions carry no header — they begin with raw payload, which is why
+they appear as UNRECOGNIZED signatures. The `.a` chain starts at the DDS
+header's size field, consistent with being a detached alpha surface.
+
+**Still unknown: the pixel format.** The DDS FourCC sits at offset 84, beyond
+the 64-byte sample window, so whether this is BC1/BC3/BC5/BC7 is not yet
+established. That is the next thing worth reading, and it now matters less
+than expected — the target GPU supports BC natively (see `DEVICE.md`).
 
 ## Materials — `.mtl`
 
@@ -114,32 +129,43 @@ definitions, and navigation data. Prey's Talos I is a single continuous station
 with heavy streaming between sections; expect the level structure to reflect
 that rather than the open-terrain layout CryEngine documentation assumes.
 
-## Audio — `.bnk` / `.pck`
+## Audio — Wwise
 
-**UNVERIFIED, and the engine is genuinely in question.** CryEngine routes audio
-through an Audio Translation Layer with both Wwise and FMOD implementations.
-Which one Prey uses needs confirming by looking at the shipped DLLs and the
-audio data layout, not by recall.
+**VERIFIED.** **13,486 `.wem` files** — Wwise's encoded media format. The
+middleware question is settled: it is Wwise, not FMOD.
+
+Worth noting what is *absent*: **no `.bnk` soundbanks**. The audio ships as
+loose `.wem` media rather than packed banks, which is unusual and simplifies
+extraction considerably — individual sounds are addressable without parsing a
+bank container.
+
+The probe's own middleware detection reported `UNDETERMINED`, because it
+infers from CryEngine ATL implementation DLL names and this install carries
+only 20 binaries. The `.wem` inventory is the stronger evidence and overrides
+it.
 
 ## Scripting — Lua
 
-**UNVERIFIED.** CryEngine embeds Lua. Scripts may ship as source or as
-precompiled bytecode; bytecode would be Lua-version- and endianness-specific,
-which matters when the target is ARM64.
+**VERIFIED.** **419 files, all bytecode. Zero source.**
+
+Bytecode is version- and endianness-bound, which matters directly for an ARM64
+target: the bytecode must either be interpreted by a matching Lua build or
+decompiled and recompiled. Identifying the exact Lua/LuaJIT variant from the
+bytecode header is the follow-up.
 
 ## Next
 
-Run the probe against a real install and promote entries in this file from
-UNVERIFIED to VERIFIED against what it reports:
+Phase 1's first pass is done — archives, geometry headers, texture layout,
+audio middleware and Lua encoding are all measured. What remains:
 
-```sh
-python3 tools/probe/probe.py "/path/to/Prey" -o prey-report.json
-```
+1. **DDS pixel format.** The FourCC is at offset 84, past the probe's 64-byte
+   window. A targeted read of a few `.dds` headers settles whether this is
+   BC1/BC3/BC5/BC7.
+2. **`.mtl` encoding** — text XML or CryEngine binary XML. Extract one and look.
+3. **Lua bytecode variant** — which Lua or LuaJIT build produced it.
+4. **Chunk table contents** — the `CrCh` header and table offset are known; the
+   chunk types and their payloads are not.
+5. **`.wem` codec** — which encoding Wwise used, for the audio re-encode stage.
 
-A single run settles, at minimum: which compression methods CryPak actually
-uses, the real extension inventory, the `.cgf`/`.chr` chunk header layout and
-version numbers, the audio middleware (from the ATL implementation DLL), and
-whether Lua ships as source or bytecode — five of the open questions in
-`ARCHITECTURE.md`, from one command.
-
-The game data itself never has to move. See `GETTING_DATA.md`.
+All five are single-file reads now that extraction is known to work on
+everything. None require the whole install.
