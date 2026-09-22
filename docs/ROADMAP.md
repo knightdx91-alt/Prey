@@ -102,18 +102,36 @@ to replace the model's estimate.
 
 ## Phase 3.5 — Bundled-stack APK
 
-The actual deliverable. Wrap a working container configuration into a single
-Android app: preconfigured Wine prefix, Box64, DXVK, driver, and a launcher
-that boots straight into the game. Tap an icon, Prey starts.
+The actual deliverable. **Gated on Phase 2** — there is no point packaging a
+configuration that has not been shown to run.
 
-Still translation underneath, and an Android port by every practical measure.
-Reachable solo — integration work, not invention. See `FEASIBILITY.md`.
+### What the APK actually contains
+
+Not the game. 29.3 GiB of game data cannot live inside an APK: Play caps the
+base module in the hundreds of megabytes, and even a sideloaded APK is the
+wrong container for tens of gigabytes.
+
+The realistic architecture is a **launcher plus runtime**:
+
+| Component | Where it lives | Size |
+|---|---|---|
+| Wine prefix, Box64, DXVK, driver | inside the APK | ~1–2 GB |
+| Launcher that boots straight into the game | inside the APK | trivial |
+| Game data | external storage, placed once | 29.3 GiB |
+
+That is the same shape emulator frontends and console-style installs use, and
+it still delivers the thing that matters: tap an icon, the game starts, no
+container UI, no drive mapping, no Wine desktop.
+
+An installer flow inside the app can handle placing the data, so the user
+experience is "install app, point it at the game files once, play."
 
 - [ ] Reach a playable configuration in Winlator first (Phases 2–3)
 - [ ] Capture that container configuration reproducibly
-- [ ] Build an APK that ships it preconfigured
+- [ ] Build an APK shipping the runtime preconfigured
 - [ ] Launcher that skips the container UI entirely
-- [ ] Bundle or side-load the converted assets from Phase 3
+- [ ] First-run flow for locating or importing the game data
+- [ ] Bundle the converted assets from Phase 3 where size allows
 
 Exit criterion: an installable app that launches Prey without the user
 touching a container setting.
