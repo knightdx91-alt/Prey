@@ -136,7 +136,10 @@ container UI, no drive mapping, no Wine desktop.
 An installer flow inside the app can handle placing the data, so the user
 experience is "install app, point it at the game files once, play."
 
-- [ ] Reach a playable configuration in Winlator first (Phases 2–3)
+- [ ] **Stage 1 now:** home screen shortcut — tap-to-play with zero
+      development (see `APK_PATH.md`)
+- [ ] Reach a *stable* configuration first — packaging a crashy build just
+      adds a build step between every fix and every test
 - [ ] Capture that container configuration reproducibly
 - [ ] Build an APK shipping the runtime preconfigured
 - [ ] Launcher that skips the container UI entirely
