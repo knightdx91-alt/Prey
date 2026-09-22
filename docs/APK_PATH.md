@@ -9,8 +9,32 @@ Winlator-class apps can place a shortcut on the Android home screen that
 launches a specific container and executable directly. Tap the icon, the game
 starts. No container UI, no drive mapping, no Wine desktop.
 
-Usually found by long-pressing the container, or under its settings, as
-"Create shortcut" / "Add to home screen".
+### How
+
+It is **two steps**, and the second is the one people miss.
+
+**1. Create the shortcut inside Winlator.** Start the container, open the file
+manager on the Wine desktop, navigate to the mapped drive, and **long-press
+`Prey.exe`** rather than tapping it. A menu should offer something like
+"Create shortcut" / "Add shortcut". The new entry then appears in Winlator's
+own **Shortcuts** list, alongside the Containers list on the main screen.
+
+**2. Push it to the Android home screen.** Back on Winlator's main screen,
+**long-press the shortcut** in the Shortcuts list. That menu should offer "Add
+to home screen" (and usually Properties). Confirm, and Android places the icon.
+
+Now tapping that icon launches straight into the game.
+
+### Worth knowing
+
+Shortcuts usually carry **their own settings** — driver, resolution, Box64
+options — layered over the container's. That is useful: it means a
+configuration can be tuned per game without disturbing the container, and the
+shortcut's settings are exactly what Stage 3 would hardcode.
+
+> Menu labels vary between builds and versions. The structure — create from the
+> executable, then export to the home screen — is what holds; look for options
+> matching that shape rather than those exact words.
 
 **This delivers most of what "an APK I can install" actually means.** It is not
 a separate app, but the experience — icon on the home screen, tap to play — is
