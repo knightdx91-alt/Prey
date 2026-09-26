@@ -122,7 +122,19 @@ The `soc_prior` inference from the `U` suffix held.
 
 The first Termux run reported `deviceName = llvmpipe`, Mesa's **software
 rasterizer on the CPU**, because Termux's loader picked up its own Mesa build
-instead of the vendor ICD. Its texture-format answers described the CPU and
+instead of the vendor ICD.
+
+**The specific cause is visible during install:** `pkg install vulkan-tools`
+pulls in **`mesa-vulkan-icd-swrast`**, Mesa's software Vulkan ICD. Once that is
+present, `vulkaninfo` finds it and reports llvmpipe, because Termux cannot
+normally load the vendor driver from `/vendor/lib64/hw`. Seeing
+`Setting up mesa-vulkan-icd-swrast` scroll past during setup means the Vulkan
+section of the next digest will read SOFTWARE-ONLY.
+
+That is expected and not a failure. Crucially, **`gpu_family` does not come
+from `vulkaninfo`** — it is read from the Android property
+`ro.hardware.egl`, which reports the real hardware. So the decisive line in
+the digest stays trustworthy even when the Vulkan block does not. Its texture-format answers described the CPU and
 were meaningless here. `device.py` now detects software rasterizers and refuses
 to present their capabilities as measurements.
 
