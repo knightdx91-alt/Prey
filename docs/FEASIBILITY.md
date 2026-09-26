@@ -303,3 +303,53 @@ Storage is the same story: 150 GB against 26.64 GB free, on a device with
 This is what the table above predicts: a current-gen D3D12 open-world title
 fails on resources before its renderer is ever reached. Prey is not a
 precedent for it — Prey is the favourable end of the same spectrum.
+
+
+### Worked example — Kingdom Come: Deliverance
+
+Verified against Steam 2026-09-26, alongside Prey as the proven baseline.
+
+| | Prey (2017) | **KCD (2018)** | KCD II (2025) |
+|---|---|---|---|
+| Engine | CryEngine | **CryEngine** | CryEngine |
+| Graphics API | D3D11 (proven working) | **DirectX 11** | not stated |
+| RAM minimum | 8 GB | **8 GB** | 16 GB |
+| GPU minimum | GTX 660 2GB | **GTX 660** | GTX 1060 6GB |
+| Storage | 20 GB stated / 29.3 GiB measured | **70 GB** | 100 GB |
+| World | enclosed station | **open world** | open world |
+
+**KCD 1 matches the proven baseline exactly on the two hardest axes.** Same
+8 GB RAM minimum, same GTX 660 GPU minimum, same D3D11 path, and the same
+engine family whose renderer this stack has already been shown to carry. On
+the spec sheet it asks no more of the hardware than the game currently
+running.
+
+Two things separate it:
+
+1. **Storage — 70 GB against 26.64 GB free.** The hard blocker, and the only
+   one that is purely a matter of clearing space.
+2. **Open world.** Not on any spec sheet, and the more interesting risk. Prey
+   loads an enclosed station in sections and *still* produces memory-driven
+   crashes here. A world that streams continuously works the same constraint
+   harder, so matching minimum specs does not imply matching real load.
+
+Verdict: **the strongest candidate seen so far, and worth attempting** once
+storage allows — with the expectation that memory pressure gets worse rather
+than better.
+
+**KCD II is a no.** Its 16 GB minimum exceeds the device's 10.83 GB total, so
+it fails the same way Crimson Desert does regardless of its API.
+
+### What the three examples show
+
+The table discriminates usefully rather than just saying no to everything:
+
+| Title | Verdict | Decided by |
+|---|---|---|
+| Crimson Desert | no | 16 GB RAM, 150 GB, D3D12 — fails on every axis |
+| KCD II | no | 16 GB RAM minimum exceeds device total |
+| **KCD 1** | **plausible** | matches the proven baseline; storage is the blocker |
+
+The method is cheap enough to run before any download: pull the Steam
+requirements, compare RAM and storage against the measured device, and check
+the API. Two minutes, no bytes transferred.
