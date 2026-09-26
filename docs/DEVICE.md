@@ -192,3 +192,39 @@ Freeing space solves it. So does a cheaper option worth considering first:
 source as its output lands, which keeps the peak near `output + largest single
 archive` instead of `output + entire install`. That is a Phase 3 design
 decision, recorded here so it is made deliberately.
+
+
+## Evaluating another device
+
+`device.py` works on any Android device, so it doubles as a way to answer
+"could this one run it?" before investing time. Install Termux, then:
+
+```sh
+pkg install -y git python vulkan-tools
+git clone https://github.com/knightdx91-alt/Prey
+cd Prey
+python3 tools/device/device.py --digest
+```
+
+Read the digest in this order — the first two decide almost everything:
+
+| Line | What it means |
+|---|---|
+| `gpu_family` | **Adreno** keeps the Turnip path open. **Mali**, **PowerVR** or **Xclipse** means vendor-driver-only, and the translation stack is substantially worse off |
+| `ram=` | The Fold 8 has 10.83 GB and still hits memory-driven crashes. Less than that is a harder problem, not a slightly harder one |
+| `BUDGET CHECK` | Whether ~29 GB of game data plus its converted output has anywhere to live |
+| `vulkan=` | API version, and whether the report came from the real driver rather than a software rasterizer |
+
+### Product tier is a strong prior
+
+Samsung's **Tab A** line is the budget tier — below Tab S FE, well below Tab S.
+Budget tablets commonly ship MediaTek silicon, which means **Mali** graphics
+rather than Adreno, and typically 4–8 GB of RAM.
+
+If both of those hold, the honest expectation is that Winlator installs and
+runs, and Prey either does not start or is not playable. The GPU family is the
+part that would make it a different kind of problem rather than a smaller one:
+Turnip does not apply to Mali, and no amount of settings tuning substitutes
+for a driver.
+
+None of that is measured. A probe run replaces the whole paragraph.
