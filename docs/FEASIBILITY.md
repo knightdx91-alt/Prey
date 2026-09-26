@@ -276,3 +276,30 @@ Before committing to a large current-gen title, answer two questions in order:
 
 A current-gen open-world title typically fails on every one of those before
 its renderer is ever reached.
+
+
+### Worked example — Crimson Desert Enhanced
+
+Checked against Steam's published requirements (app 4783050, released
+2026-03-19, verified 2026-09-26). Every row fails, and two fail by large
+multiples before any translation overhead is counted:
+
+| Requirement | Stated minimum | Fold 8 (measured) | |
+|---|---|---|---|
+| Graphics API | **DirectX 12** | DXVK path is D3D11 | VKD3D-Proton instead |
+| RAM | **16 GB** | 10.83 GB total, ~3.09 GB free | **68% of minimum** |
+| Storage | **150 GB** | 26.64 GB free | **5.6x over** |
+| GPU | GTX 1060 / RX 5500 XT | Adreno 840 | through emulation |
+| Storage type | SSD required | UFS — the one row that passes | |
+
+The RAM row alone settles it. 16 GB is the *minimum*, not the recommendation,
+and the device has less than that in total — before Wine, Box64 and VKD3D take
+their share. Prey asks for ~8 GB and already produces memory-driven crashes on
+this hardware.
+
+Storage is the same story: 150 GB against 26.64 GB free, on a device with
+221.50 GB total. It could only fit by emptying the phone almost completely.
+
+This is what the table above predicts: a current-gen D3D12 open-world title
+fails on resources before its renderer is ever reached. Prey is not a
+precedent for it — Prey is the favourable end of the same spectrum.
