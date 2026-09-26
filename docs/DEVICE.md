@@ -271,3 +271,39 @@ the Tab S tier); budget lines get "often MediaTek -> Mali; confirm".
 The `SM-F971U` prior was right for the right reason. This one was right by
 accident of phrasing and wrong in substance — worth fixing rather than
 excusing, since the whole point of `soc_prior` is to be a *useful* guess.
+
+
+## Buying a device for this: check the GPU vendor first
+
+The Galaxy Tab S10+ came up as a candidate. It is a genuinely strong tablet —
+**12 GB LPDDR5X** (more than the Fold 8's 10.83 GB), 256 GB storage plus
+microSD, a flagship-class SoC. On memory and storage it would fix both of the
+Fold's current problems outright.
+
+**It is still the wrong device for this**, because its Dimensity 9300+ is
+MediaTek, and MediaTek licenses ARM graphics — so Mali/Immortalis, not Adreno.
+No Turnip. Same disqualifier as the Tab A11+, arrived at from the opposite end
+of the price range.
+
+That is the rule worth carrying: **on this stack the GPU vendor outranks every
+other specification.** A device with twice the RAM and four times the storage
+is still not usable if the driver is not there, and no amount of tuning
+substitutes for one.
+
+### The SoC prior has now been wrong twice
+
+Both failures were tablets, and each correction narrowed it:
+
+| Device | Prior said | Reality |
+|---|---|---|
+| SM-X238U (Tab A) | Snapdragon → Adreno | MediaTek MT8775, Mali |
+| Tab S10 series | Snapdragon → Adreno | MediaTek Dimensity 9300+, Immortalis |
+
+The second is the informative one. The first correction assumed *tier* was the
+missing variable — budget lines ship MediaTek, flagship lines ship Qualcomm.
+The Tab S10 disproves that: it is the flagship tablet line and it is MediaTek.
+
+Samsung mixes vendors across tablet generations, so tier does not predict it.
+`device.py` now gives **no vendor prior for any tablet** — the field reads
+"vendor varies by generation; measure". Only US phone flagships keep a prior,
+which is the one case that has held.

@@ -76,12 +76,19 @@ SAMSUNG_REGIONS = {
     "0": "open market",
 }
 
-# Which product lines have been Qualcomm-consistent in the US. The U suffix
-# means "US variant" and nothing more: on flagship lines that has reliably
-# implied Snapdragon, and on budget lines it does not. SM-X238U (a Tab A) is
-# MediaTek MT8775 with Mali graphics despite the U suffix, which is exactly
-# the case an earlier version of this table got wrong.
-FLAGSHIP_SERIES = {"S", "F", "N"}
+# Which product lines have been Qualcomm-consistent in the US.
+#
+# This prior has now been wrong twice, and each correction narrowed it:
+#   1. SM-X238U (Tab A)  -> MediaTek MT8775, Mali. Budget lines ship MediaTek
+#      regardless of region, so the US suffix implied nothing.
+#   2. Tab S10 series    -> MediaTek Dimensity 9300+, ARM Immortalis (Mali),
+#      despite being the flagship tablet line.
+#
+# The second failure is the informative one: tier does not predict SoC vendor
+# for tablets, because Samsung has mixed vendors across tablet generations. So
+# tablets get no vendor prior at all now. Only phone flagships keep one, and
+# even that is a prior the driver is expected to overturn.
+PHONE_FLAGSHIP_SERIES = {"S", "F", "N"}
 US_SUFFIXES = {"U", "U1", "W"}
 
 
@@ -115,13 +122,15 @@ def decode_samsung_model(model: str) -> dict[str, Any] | None:
 
     if suffix:
         info["region"] = SAMSUNG_REGIONS.get(suffix, "unrecognized suffix")
-        flagship = series in FLAGSHIP_SERIES or (tablet_tier or "").startswith("Tab S")
-        if suffix in US_SUFFIXES and flagship:
+        if tablet_tier:
+            # No vendor prior for tablets: Samsung mixes Qualcomm and MediaTek
+            # across tablet lines and generations, flagship tiers included.
+            info["soc_prior"] = "tablet — vendor varies by generation; measure"
+        elif series in PHONE_FLAGSHIP_SERIES and suffix in US_SUFFIXES:
             info["soc_prior"] = "Snapdragon expected -> Adreno"
-        elif flagship:
+        elif series in PHONE_FLAGSHIP_SERIES:
             info["soc_prior"] = "varies by region; confirm"
         else:
-            # Budget lines commonly ship MediaTek regardless of region.
             info["soc_prior"] = "budget line — often MediaTek -> Mali; confirm"
     return info
 

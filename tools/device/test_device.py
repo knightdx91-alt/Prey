@@ -461,16 +461,35 @@ class SocPriorScopeTest(unittest.TestCase):
         info = device.decode_samsung_model("SM-X238U")
         self.assertEqual(info["tier"], "Tab A (budget)")
         self.assertNotIn("Snapdragon", info["soc_prior"])
-        self.assertIn("MediaTek", info["soc_prior"])
 
     def test_budget_phone_does_not_get_it(self):
         info = device.decode_samsung_model("SM-A556U")
         self.assertNotIn("Snapdragon", info["soc_prior"])
 
-    def test_flagship_tablet_does_get_it(self):
-        info = device.decode_samsung_model("SM-X818U")
+    def test_no_tablet_gets_a_vendor_prior(self):
+        """Tier does not predict SoC vendor for tablets. SM-X238U (Tab A) is
+        MediaTek, and the Tab S10 flagship line is MediaTek Dimensity 9300+
+        with ARM Immortalis graphics. Two failures; tablets now get none."""
+        for model in ("SM-X238U", "SM-X818U", "SM-X828U"):
+            info = device.decode_samsung_model(model)
+            self.assertIn("tier", info, model)
+            self.assertNotIn("Snapdragon", info["soc_prior"], model)
+            self.assertIn("measure", info["soc_prior"], model)
+
+    def test_model_without_a_region_suffix_gets_no_prior_at_all(self):
+        """No suffix means no regional information, so there is nothing to
+        base a prior on -- the field is absent rather than guessed."""
+        info = device.decode_samsung_model("SM-T870")
         self.assertEqual(info["tier"], "Tab S (flagship)")
-        self.assertIn("Snapdragon", info["soc_prior"])
+        self.assertNotIn("soc_prior", info)
+        self.assertNotIn("region", info)
+
+    def test_phone_flagship_keeps_its_prior(self):
+        """The one case that has held: US phone flagships."""
+        for model in ("SM-F971U", "SM-S928U"):
+            self.assertIn(
+                "Snapdragon", device.decode_samsung_model(model)["soc_prior"], model
+            )
 
     def test_tablets_are_recognised_as_tablets(self):
         for model in ("SM-X238U", "SM-T870", "SM-X818U"):
