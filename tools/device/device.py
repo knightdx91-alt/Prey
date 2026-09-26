@@ -68,13 +68,21 @@ GPU_NOTES: dict[str, str] = {
 # generations where other regions got Exynos (hence Xclipse). Useful as a prior
 # when vulkaninfo is not installed; the probe still confirms from the driver.
 SAMSUNG_REGIONS = {
-    "U": ("US carrier/unlocked", "Snapdragon expected -> Adreno"),
-    "U1": ("US unlocked", "Snapdragon expected -> Adreno"),
-    "B": ("Europe / international", "varies by generation; confirm"),
-    "N": ("Korea", "varies by generation; confirm"),
-    "W": ("Canada", "varies by generation; confirm"),
-    "0": ("open market", "varies by generation; confirm"),
+    "U": "US carrier/unlocked",
+    "U1": "US unlocked",
+    "B": "Europe / international",
+    "N": "Korea",
+    "W": "Canada",
+    "0": "open market",
 }
+
+# Which product lines have been Qualcomm-consistent in the US. The U suffix
+# means "US variant" and nothing more: on flagship lines that has reliably
+# implied Snapdragon, and on budget lines it does not. SM-X238U (a Tab A) is
+# MediaTek MT8775 with Mali graphics despite the U suffix, which is exactly
+# the case an earlier version of this table got wrong.
+FLAGSHIP_SERIES = {"S", "F", "N"}
+US_SUFFIXES = {"U", "U1", "W"}
 
 
 def decode_samsung_model(model: str) -> dict[str, Any] | None:
@@ -89,7 +97,8 @@ def decode_samsung_model(model: str) -> dict[str, Any] | None:
     series, number, suffix = match.group(1), match.group(2), match.group(3) or ""
 
     families = {"F": "Galaxy Z (foldable)", "S": "Galaxy S", "G": "Galaxy S (older)",
-                "N": "Galaxy Note", "A": "Galaxy A", "T": "Galaxy Tab"}
+                "N": "Galaxy Note", "A": "Galaxy A", "T": "Galaxy Tab",
+                "X": "Galaxy Tab", "P": "Galaxy Tab"}
     info: dict[str, Any] = {
         "model": model.strip().upper(),
         "family": families.get(series, f"unknown series {series}"),
@@ -97,10 +106,23 @@ def decode_samsung_model(model: str) -> dict[str, Any] | None:
     }
     if series == "F" and number.startswith("9"):
         info["family"] = "Galaxy Z Fold"
+
+    # Tablet tier tracks the number: high is the S line, low is the A line.
+    tablet_tier = None
+    if series in ("X", "T", "P"):
+        tablet_tier = "Tab S (flagship)" if number[0] in "789" else "Tab A (budget)"
+        info["tier"] = tablet_tier
+
     if suffix:
-        region, soc = SAMSUNG_REGIONS.get(suffix, ("unrecognized suffix", "confirm"))
-        info["region"] = region
-        info["soc_prior"] = soc
+        info["region"] = SAMSUNG_REGIONS.get(suffix, "unrecognized suffix")
+        flagship = series in FLAGSHIP_SERIES or (tablet_tier or "").startswith("Tab S")
+        if suffix in US_SUFFIXES and flagship:
+            info["soc_prior"] = "Snapdragon expected -> Adreno"
+        elif flagship:
+            info["soc_prior"] = "varies by region; confirm"
+        else:
+            # Budget lines commonly ship MediaTek regardless of region.
+            info["soc_prior"] = "budget line — often MediaTek -> Mali; confirm"
     return info
 
 
@@ -307,12 +329,22 @@ def read_vulkan() -> dict[str, Any]:
 
 
 def classify_gpu(props: dict[str, dict[str, str]], vulkan: dict[str, Any]) -> dict[str, Any]:
-    """Name the GPU family and what it implies for the driver path."""
+    """Name the GPU family and what it implies for the driver path.
+
+    The vendor driver filename is included deliberately, and is the strongest
+    signal of the lot: `/vendor/lib64/hw/vulkan.mali.so` names the hardware
+    directly, and it survives the case where Termux loads a software
+    rasterizer and `deviceName` becomes useless. An earlier version printed
+    that path and still reported the family as unknown.
+    """
     haystack = " ".join([
         vulkan.get("device_name", ""),
+        " ".join(vulkan.get("vendor_drivers", [])),
         props.get("graphics", {}).get("ro.hardware.egl", ""),
+        props.get("graphics", {}).get("ro.hardware.vulkan", ""),
         props.get("cpu", {}).get("ro.board.platform", ""),
         props.get("cpu", {}).get("ro.soc.model", ""),
+        props.get("cpu", {}).get("ro.hardware", ""),
     ]).lower()
 
     for family, note in GPU_NOTES.items():

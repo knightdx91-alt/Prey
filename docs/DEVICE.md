@@ -227,16 +227,47 @@ Read the digest in this order — the first two decide almost everything:
 | `BUDGET CHECK` | Whether ~29 GB of game data plus its converted output has anywhere to live |
 | `vulkan=` | API version, and whether the report came from the real driver rather than a software rasterizer |
 
-### Product tier is a strong prior
+### Measured: Galaxy Tab A11+ (SM-X238U) — not viable
 
-Samsung's **Tab A** line is the budget tier — below Tab S FE, well below Tab S.
-Budget tablets commonly ship MediaTek silicon, which means **Mali** graphics
-rather than Adreno, and typically 4–8 GB of RAM.
+Probed 2026-09-26. **Verdict: do not pursue. Keep the work on the Fold.**
 
-If both of those hold, the honest expectation is that Winlator installs and
-runs, and Prey either does not start or is not playable. The GPU family is the
-part that would make it a different kind of problem rather than a smaller one:
-Turnip does not apply to Mali, and no amount of settings tuning substitutes
-for a driver.
+| | Fold 8 (SM-F971U) | Tab A11+ (SM-X238U) |
+|---|---|---|
+| SoC | SM8850 (Qualcomm) | **MT8775 / mt6878 (MediaTek)** |
+| GPU driver | `vulkan.adreno` | **`vulkan.mali.so`** |
+| Max CPU clock | 4742 MHz | 2500 MHz |
+| RAM total / free | 10.83 / 3.09 GB | **5.24 / 1.82 GB** |
+| Storage free | 26.64 GB | 79.73 GB |
 
-None of that is measured. A probe run replaces the whole paragraph.
+Three of those are disqualifying, and they compound:
+
+1. **Mali, not Adreno.** Turnip does not apply. The mature open Vulkan driver
+   that makes the whole translation stack work on the Fold does not exist for
+   this hardware, and no amount of settings tuning substitutes for a driver.
+2. **Half the RAM.** The Fold has 10.83 GB and *still* hits memory-driven
+   crashes on this game. 5.24 GB total with 1.82 GB free is not a smaller
+   version of that problem.
+3. **Roughly half the CPU clock.** Box64's x86-64 emulation is CPU-bound, so
+   this lands directly on the part of the stack that can least afford it.
+
+Storage is the one thing it has going for it, and storage was never the
+binding constraint.
+
+### Two bugs this probe exposed
+
+**`gpu_family` read `unknown` while the same digest printed
+`hardware driver present: /vendor/lib64/hw/vulkan.mali.so`.** The classifier
+looked at `deviceName`, `ro.hardware.egl`, `ro.board.platform` and
+`ro.soc.model`, but not at the vendor driver paths it had just found. Fixed —
+and the driver filename is now the strongest signal in the set, because it
+names the hardware directly and survives Termux loading a software rasterizer.
+
+**`soc_prior` said "Snapdragon expected -> Adreno" for a MediaTek device.**
+The `U` suffix means *US variant*, not Snapdragon. That correlation holds on
+flagship lines and fails on budget ones, where Samsung ships MediaTek
+regardless of region. The prior is now scoped to flagship series (S, F, N, and
+the Tab S tier); budget lines get "often MediaTek -> Mali; confirm".
+
+The `SM-F971U` prior was right for the right reason. This one was right by
+accident of phrasing and wrong in substance — worth fixing rather than
+excusing, since the whole point of `soc_prior` is to be a *useful* guess.

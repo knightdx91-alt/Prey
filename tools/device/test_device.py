@@ -413,3 +413,72 @@ class ConversionPeakTest(unittest.TestCase):
             expected = device.SOURCE_GB + need
             line = next(l for l in peak_block.splitlines() if name in l)
             self.assertIn(f"{expected:.1f} GB", line, name)
+
+
+class VendorDriverClassificationTest(unittest.TestCase):
+    """The vendor driver filename names the hardware directly and survives
+    Termux loading a software rasterizer. An earlier version printed
+    /vendor/lib64/hw/vulkan.mali.so and still reported the family as unknown."""
+
+    def test_mali_identified_from_vendor_driver_alone(self):
+        result = device.classify_gpu(
+            {}, {"vendor_drivers": ["/vendor/lib64/hw/vulkan.mali.so"]}
+        )
+        self.assertEqual(result["family"], "mali")
+
+    def test_vendor_driver_wins_over_a_software_device_name(self):
+        """deviceName is llvmpipe, which says nothing. The driver path does."""
+        result = device.classify_gpu({}, {
+            "device_name": "llvmpipe (LLVM 21.1.8, 128 bits)",
+            "vendor_drivers": ["/vendor/lib64/hw/vulkan.mali.so"],
+        })
+        self.assertEqual(result["family"], "mali")
+        self.assertIn("vendor Vulkan", result["note"])
+
+    def test_adreno_driver_identified(self):
+        result = device.classify_gpu(
+            {}, {"vendor_drivers": ["/vendor/lib64/hw/vulkan.adreno.so"]}
+        )
+        self.assertEqual(result["family"], "adreno")
+
+    def test_still_unknown_with_no_evidence_at_all(self):
+        self.assertEqual(
+            device.classify_gpu({}, {"vendor_drivers": []})["family"], "unknown"
+        )
+
+
+class SocPriorScopeTest(unittest.TestCase):
+    """The U suffix means 'US variant', not 'Snapdragon'. That correlation
+    holds on flagship lines and fails on budget ones -- SM-X238U is a US Tab A
+    running MediaTek MT8775 with Mali graphics."""
+
+    def test_flagship_us_variant_gets_the_snapdragon_prior(self):
+        for model in ("SM-F971U", "SM-S928U"):
+            info = device.decode_samsung_model(model)
+            self.assertIn("Snapdragon", info["soc_prior"], model)
+
+    def test_budget_tablet_does_not_get_it(self):
+        info = device.decode_samsung_model("SM-X238U")
+        self.assertEqual(info["tier"], "Tab A (budget)")
+        self.assertNotIn("Snapdragon", info["soc_prior"])
+        self.assertIn("MediaTek", info["soc_prior"])
+
+    def test_budget_phone_does_not_get_it(self):
+        info = device.decode_samsung_model("SM-A556U")
+        self.assertNotIn("Snapdragon", info["soc_prior"])
+
+    def test_flagship_tablet_does_get_it(self):
+        info = device.decode_samsung_model("SM-X818U")
+        self.assertEqual(info["tier"], "Tab S (flagship)")
+        self.assertIn("Snapdragon", info["soc_prior"])
+
+    def test_tablets_are_recognised_as_tablets(self):
+        for model in ("SM-X238U", "SM-T870", "SM-X818U"):
+            self.assertEqual(
+                device.decode_samsung_model(model)["family"], "Galaxy Tab", model
+            )
+
+    def test_non_us_flagship_stays_open(self):
+        info = device.decode_samsung_model("SM-F956B")
+        self.assertIn("confirm", info["soc_prior"])
+        self.assertNotIn("Snapdragon", info["soc_prior"])
