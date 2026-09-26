@@ -290,6 +290,21 @@ other specification.** A device with twice the RAM and four times the storage
 is still not usable if the driver is not there, and no amount of tuning
 substitutes for one.
 
+### Priority order when assessing a device
+
+1. **GPU vendor** — Qualcomm/Adreno, or stop here. Nothing below compensates.
+2. **RAM** — 10.83 GB already produces memory-driven crashes on Prey.
+3. **Storage** — needs the install plus, during conversion, its output.
+4. **CPU clock** — Box64's emulation is CPU-bound.
+5. *Everything else*, including **Android version**.
+
+That last point is worth stating because OS version is the easiest spec to
+read off a listing and among the least relevant. Termux and Winlator both run
+on older releases, and newer Android has if anything added restrictions around
+dynamic code loading that complicate emulation rather than help it. A listed
+OS is also usually the shipping version, not what the device runs after
+updates.
+
 ### The SoC prior has now been wrong twice
 
 Both failures were tablets, and each correction narrowed it:
