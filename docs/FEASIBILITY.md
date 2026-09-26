@@ -231,3 +231,48 @@ not boot, that is worth knowing before building tooling to feed it.
 
 Phase 1 work remains worth doing regardless: the format knowledge is needed for
 any path, and it is the part that is unambiguously achievable.
+
+
+## What makes a title viable on this stack
+
+Prey ran. That is easy to over-generalise from, because Prey is close to a
+best case for this approach. The factors that decided it, roughly in order of
+how much they matter:
+
+| Factor | Favourable | Unfavourable |
+|---|---|---|
+| **Graphics API** | D3D9/10/11 → **DXVK**, mature | D3D12 → **VKD3D-Proton**, far less forgiving on mobile drivers |
+| **Console generation targeted** | last-gen (PS4/Xbox One era) | current-gen only (PS5/Series X) |
+| **World structure** | enclosed, loads in sections | open world, streams continuously |
+| **Install size** | tens of GB | 100 GB+ |
+| **RAM expectation** | ~8 GB | 16 GB+ |
+| **Anti-tamper** | none or light | heavy DRM, a failure mode of its own |
+
+Prey scores favourably on every row: a 2017 D3D11 title built for 2013 console
+hardware, set in an enclosed station that loads in chunks, at 29.3 GiB. That
+is why it works on a phone, and it is not a general result about the hardware.
+
+### The API row is close to decisive
+
+DXVK translating D3D11 is well-trodden. **D3D12 goes through VKD3D-Proton
+instead**, which leans on more Vulkan features and much more driver maturity.
+Mobile drivers are the weakest link in the stack already, and VKD3D asks more
+of them than DXVK does.
+
+The Adreno 840's Vulkan 1.4.295 may well expose the *features* required; that
+is not the same as delivering the *performance*, and the two are commonly
+confused when reading a capability table.
+
+### The cheap way to evaluate a candidate
+
+Before committing to a large current-gen title, answer two questions in order:
+
+1. **Does the title use D3D12?** If so, find out whether *any* D3D12 game runs
+   on this setup before worrying about this one. That is a far cheaper
+   experiment, and a negative answer settles the whole question.
+2. **What does it expect in RAM and storage?** Compare against the measured
+   10.83 GB total / ~3.09 GB free and 26.64 GB free. Prey wants ~8 GB and
+   already produces memory-driven crashes here.
+
+A current-gen open-world title typically fails on every one of those before
+its renderer is ever reached.
