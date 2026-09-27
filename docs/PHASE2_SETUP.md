@@ -198,6 +198,35 @@ the problem entirely.
 
 See `PHASE2_LOG.md` for what has actually been tried.
 
+## When the game renders small in a corner
+
+Two resolutions are involved and they are easy to confuse:
+
+| Setting | What it controls |
+|---|---|
+| Winlator's **Screen Size** | the Wine desktop — the "monitor" the game believes it has |
+| The **game's own** resolution | what the game actually renders |
+
+If the game's internal resolution is lower than the container's screen size, it
+draws small and the remainder of the desktop stays black. **Toggling fullscreen
+does not fix this**, because it resizes the window rather than what the game
+renders into it.
+
+Fix it in this order:
+
+1. **Set the game's own resolution** from its graphics or display options, to
+   match the container's Screen Size. This is the fix most of the time.
+2. **Check the scaling control** beside Winlator's Screen Size field — the gear
+   icon next to it usually exposes stretch/fit behaviour for when the game
+   cannot match the desktop exactly.
+3. **Edit the game's config file** if its menu offers no suitable resolution.
+   Older titles frequently ship a settings file with explicit width and height
+   values, and some only expose 4:3 modes in their menus while accepting
+   widescreen values written directly to that file.
+4. **Change the container's Screen Size** to match whatever the game can
+   actually produce, as the last resort — it is easier to move the desktop to
+   the game than the reverse.
+
 ## Prey-specific concerns
 
 - **D3D11 → DXVK.** The well-trodden path; better supported than D3D12 or
