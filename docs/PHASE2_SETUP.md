@@ -228,6 +228,22 @@ Fix it in this order:
    the desktop equals the game's resolution exactly, Winlator scales the whole
    surface to the device screen and no black border remains.
 
+### Filling the screen
+
+Winlator scales the *desktop*, not the game. If the desktop is larger than
+what the game renders, the surplus is empty space and scaling it up enlarges
+the emptiness too.
+
+So to fill the display, **make the desktop equal the game's resolution** — set
+Screen Size to whatever the game actually outputs. The surface is then
+entirely game, and scaling it fills the device screen.
+
+Aspect ratio is the part with no clean answer. A 4:3 game on a widescreen
+panel can be shown with correct proportions and pillarbox bars, or stretched
+to fill and slightly distorted. The scaling control usually offers the choice.
+There is no third option: the game does not render a widescreen frame, so one
+of the two has to give.
+
 ### The desktop can cap the game's options
 
 Older titles enumerate display modes from the OS and offer only those that
