@@ -224,8 +224,22 @@ Fix it in this order:
    values, and some only expose 4:3 modes in their menus while accepting
    widescreen values written directly to that file.
 4. **Change the container's Screen Size** to match whatever the game can
-   actually produce, as the last resort — it is easier to move the desktop to
-   the game than the reverse.
+   actually produce. Often the best answer rather than the last resort: when
+   the desktop equals the game's resolution exactly, Winlator scales the whole
+   surface to the device screen and no black border remains.
+
+### The desktop can cap the game's options
+
+Older titles enumerate display modes from the OS and offer only those that
+**fit inside the desktop they were given**. A 1280x720 container is 720 pixels
+tall, so 1024x768 does not fit and disappears from the game's menu — leaving
+800x600 as the apparent maximum, which looks like a limitation of the game and
+is not.
+
+So when the in-game list seems unexpectedly short, **raise the container's
+Screen Size and relaunch** — something taller like 1280x1024 or 1920x1080 —
+then look at the game's options again. Vertical space is usually the binding
+constraint, since the common 4:3 modes are taller than a 720p desktop.
 
 ## Prey-specific concerns
 
